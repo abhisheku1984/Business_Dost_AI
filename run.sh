@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 # Business Dost AI — design review site launcher (macOS / Linux)
+# Starts serve.py, which picks a free port, prints the URL and opens the browser.
 set -euo pipefail
 cd "$(dirname "$0")"
-PORT="${PORT:-4173}"
-
-if [ ! -f design/index.html ]; then
-  echo "This folder is not the review folder."
-  echo "Folder: $(pwd)"
-  echo "Open the folder that has design/ and run.sh side by side, then run this again."
-  exit 1
-fi
 
 open_url() {
   if command -v open >/dev/null 2>&1; then open "$1"
@@ -17,20 +10,18 @@ open_url() {
   fi
 }
 
-if command -v python3 >/dev/null 2>&1; then
-  SERVE=(python3 -m http.server "$PORT" --bind 127.0.0.1 --directory design)
-elif command -v python >/dev/null 2>&1; then
-  SERVE=(python -m http.server "$PORT" --bind 127.0.0.1 --directory design)
-elif command -v npx >/dev/null 2>&1; then
-  SERVE=(npx --yes serve design -l "$PORT")
-else
-  echo "No Python or Node found — opening the review site directly."
-  open_url "design/index.html"
-  exit 0
+if [ ! -f design/index.html ]; then
+  echo "This folder is not the review folder."
+  echo "Folder: $(pwd)"
+  echo 'Open the folder that has "design" and "run.sh" side by side, then run this again.'
+  exit 1
 fi
 
-echo "Business Dost AI — design review"
-echo "Folder: $(pwd)"
-echo "Serving design/ at http://localhost:$PORT  (press Ctrl+C to stop)"
-( sleep 1; open_url "http://localhost:$PORT/" ) &
-exec "${SERVE[@]}"
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 serve.py
+elif command -v python >/dev/null 2>&1; then
+  exec python serve.py
+fi
+
+echo "No Python found — opening the review site directly."
+open_url "design/index.html"

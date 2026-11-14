@@ -33,6 +33,18 @@ This starts a tiny local web server and opens the site, which behaves exactly li
 
 A terminal window stays open while the site is running. Close it, or press **Ctrl + C**, to stop.
 
+The launcher (`serve.py`, standard library only) prints exactly what it serves:
+
+```
+Business Dost AI — design review
+Folder:  E:\BusinessDost
+Review:  http://localhost:4173/
+Demo:    http://localhost:4173/demo.html
+```
+
+Open the URL on the **Review** line. If port 4173 is busy it says so and moves to 4174, 4175… —
+useful when an older copy of the site is still running somewhere else.
+
 If Python is not installed, the script simply opens the site directly (Option 1).
 The launcher uses port `4173`; to use another port: `PORT=5000 ./run.sh`.
 
@@ -133,7 +145,8 @@ That is deliberate: it lets you review the look and the flow in minutes instead 
 | Symptom | Fix |
 | --- | --- |
 | Blank page when double-clicking | Use Option 2 (local server); some browsers restrict `file://` pages. |
-| “Port already in use” | Another server is running on 4173. Use `PORT=5000 ./run.sh`, or close that server. |
+| The browser shows **404 File not found** at `localhost:4173` | An older copy of this site is still running on port 4173 from a different folder, so the browser reached that one. Close the old terminal window (or find it with `Get-NetTCPConnection -LocalPort 4173 -State Listen` on Windows / `lsof -i :4173` on macOS), then run the launcher again. Current launchers notice the busy port and move to 4174, 4175… and print the URL they actually use — always open the `Review:` line. |
+| “Port already in use” | Close the older terminal, or let the launcher pick the next free port by itself. To choose explicitly: `PORT=5000 ./run.sh` (`$env:PORT=5000; .\run.bat` in PowerShell). |
 | Windows: `run.bat` flashes and closes | Python is probably missing and the direct-open fallback failed. Open `design/index.html` manually. |
 | macOS: “cannot be opened because it is from an unidentified developer” | Right-click `run.command` → **Open** → **Open** again. |
 | Text looks like a fallback font | The four font files live in `design/assets/fonts/`; make sure the whole folder was copied, not just `index.html`. |
