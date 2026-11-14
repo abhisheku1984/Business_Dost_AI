@@ -198,6 +198,28 @@ img, svg { max-width: 100%; }
 .hero__meta div { display: flex; flex-direction: column; gap: 2px; }
 .hero__meta b { font-size: 22px; font-weight: 700; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
 .hero__meta span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.hero__demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  color: var(--ink);
+  transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+}
+.hero__demo:hover { background: var(--surface); border-color: var(--line); }
+.hero__demo-play {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand-text);
+  flex: none;
+}
+.hero__demo-play .i { width: 13px; height: 13px; }
+.hero__demo b { display: block; font-size: 12.5px; font-weight: 650; letter-spacing: -0.01em; }
+.hero__demo small { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
+
 .hero__cta { display: flex; gap: 10px; margin-top: 32px; flex-wrap: wrap; }
 .hero__stage { position: relative; display: grid; place-items: center; min-height: 640px; }
 .hero__aurora {

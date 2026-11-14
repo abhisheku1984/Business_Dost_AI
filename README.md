@@ -22,6 +22,18 @@ No build step and no network needed — all fonts and icons are local.
 
 The page works offline and is designed for both desktop review and a 390 px phone.
 
+### Watch the 30-second demo
+
+The fastest way to see the product: [`design/demo.html`](design/demo.html) plays itself — no clicks.
+It chains the real screens and the real voice prototype through one story: open on the morning
+dashboard, see what needs approval, speak an order in Hinglish, watch Dost draft the invoice,
+approve it in one tap.
+
+- **In the browser:** open `design/demo.html` (or the review site's hero link). Add `?manual=1` to
+  step through it yourself, `?rec=1` for a clean no-animation recording, `?bare=1` for the phone only.
+- **As video:** [`demo/business-dost-demo.mp4`](demo/business-dost-demo.mp4) (390×844, 25 s, silent)
+  and [`demo/business-dost-demo.gif`](demo/business-dost-demo.gif) (1.1 MB, loops).
+
 What to do first:
 
 1. **Overview** — the point of view and the four principles.
@@ -37,6 +49,7 @@ What to do first:
 
 ```
 design/
+  demo.html             Self-playing 30-second demo (autopilot over the real screens)
   index.html            Review site — all sections, inline SVG sprite, modal specs
   css/
     tokens.css          Source of truth: type, colour, space, radius, elevation, motion
