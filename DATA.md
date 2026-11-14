@@ -80,6 +80,16 @@ That LevelDB folder is browser-managed — never edit it by hand.
 Because of that last row: **More → Export** writes the same JSON to a file you own. **Import** loads
 it back on any device. Export weekly if this is real money.
 
+## 4b · With Google Drive on, the file lives in the shopkeeper's own Drive
+
+If the user chooses **Save in my Google Drive** on first run, the same JSON document is also written
+to a hidden app folder in *their* Google account (`drive.appdata`), file name
+`business-dost-shop.json`. Our servers never see it; the browser talks to Google directly, and the
+access token lives in memory only. Setup and limits: [`GOOGLE_DRIVE.md`](GOOGLE_DRIVE.md).
+
+Note the consequence: **one Google account = one shop.** Two people sharing a shop need the sync
+server in §5, not two separate Drives.
+
 ## 5 · With cloud sync on, there is a second copy
 
 If you fill in **Settings → Cloud sync**, the document is also written to your own server:

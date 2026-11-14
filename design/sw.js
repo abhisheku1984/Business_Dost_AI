@@ -16,6 +16,8 @@ const SHELL = [
   "./css/app.css",
   "./css/live.css",
   "./js/live.js",
+  "./js/drive.js",
+  "./js/drive-config.js",
   "./js/screens.js",
   "./js/assistant.js",
   "./js/app-run.js",

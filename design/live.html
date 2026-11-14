@@ -103,7 +103,7 @@
         <span>Prototype</span>
       </a>
       <span class="app-bar__title">Business Dost</span>
-      <span class="app-bar__pill app-bar__pill--live">Live · saved on this device</span>
+      <span class="app-bar__pill app-bar__pill--live" id="storage-pill">Live · saved on this device</span>
     </div>
     <div class="app-bar__right">
       <button class="app-bar__ghost" id="theme-btn" type="button" aria-label="Switch theme">
@@ -137,6 +137,8 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="js/drive-config.js"></script>
+  <script src="js/drive.js"></script>
   <script src="js/live.js"></script>
   <script>
     /* Installable app: manifest + service worker live next to this page.

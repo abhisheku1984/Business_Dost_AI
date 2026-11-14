@@ -189,6 +189,7 @@
       db.meta = db.meta || {};
       db.meta.updatedAt = Date.now();
       localStorage.setItem(KEY, JSON.stringify(db));
+      if (window.BDDrive) window.BDDrive.queueSave(db);
       if (!(opts && opts.skipSync) && typeof scheduleSync === "function") scheduleSync();
     } catch (err) {
       if (!storageWarned) {
@@ -1886,6 +1887,127 @@
   /* ------------------------------------------------------------------ */
   /* settings                                                           */
   /* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  /* first run: where will the books live?                              */
+  /* ------------------------------------------------------------------ */
+  const driveModule = () => (window.BDDrive && window.BDDrive.configured() ? window.BDDrive : null);
+  const driveLinked = () => Boolean(window.BDDrive && window.BDDrive.hasState());
+  const storageMode = () => (db.settings && db.settings.storage) || "local";
+
+  function storageLabel() {
+    if (storageMode() === "drive" && driveLinked()) return "Live · in your Google Drive";
+    return "Live · saved on this device";
+  }
+
+  function paintStoragePill() {
+    const pill = document.getElementById("storage-pill");
+    if (!pill) return;
+    const label = storageLabel();
+    if (pill.textContent !== label) pill.textContent = label;
+    pill.classList.toggle("app-bar__pill--drive", storageMode() === "drive" && driveLinked());
+  }
+
+  function viewWelcome() {
+    const canDrive = Boolean(driveModule());
+    return `<div class="screen lv-welcome">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-welcome__hero">
+          <span class="lv-welcome__mark">${icon("shield")}</span>
+          <h1>Your books, in <em>your</em> Google Drive</h1>
+          <p>Business Dost does not keep a copy of your shop. Everything is saved in a private app folder inside your own Google Drive — the same place your photos and documents live.</p>
+        </div>
+
+        <div class="lv-welcome__options">
+          <button class="lv-choice lv-choice--primary" data-act="choose-drive" ${canDrive ? "" : "disabled"}>
+            <span class="lv-choice__icon">${icon("cloud")}</span>
+            <span class="lv-choice__text">
+              <b>Save in my Google Drive</b>
+              <small>Ask Google for permission, then keep every sale there. Open it on any phone you sign into.</small>
+            </span>
+            ${icon("chevron-right", "lv-choice__chev")}
+          </button>
+
+          <button class="lv-choice" data-act="choose-local">
+            <span class="lv-choice__icon">${icon("monitor")}</span>
+            <span class="lv-choice__text">
+              <b>Only on this device</b>
+              <small>Saved in this browser. Nothing leaves the phone — and nothing is recoverable if it is lost.</small>
+            </span>
+            ${icon("chevron-right", "lv-choice__chev")}
+          </button>
+        </div>
+
+        <ul class="lv-welcome__facts">
+          <li>${icon("lock")} <span>The app can only open <b>its own file</b> in Drive — it cannot browse your documents.</span></li>
+          <li>${icon("shield")} <span>No account with us, no server of ours, no analytics. Your browser talks straight to Google.</span></li>
+          <li>${icon("refresh")} <span>Reinstall or change phones: sign in with the same Google account and your shop is back.</span></li>
+          <li>${icon("info")} <span>You can disconnect at any time in Settings. The file stays in your Drive until you delete it.</span></li>
+        </ul>
+
+        ${canDrive ? "" : `<div class="lv-note" style="margin:0 16px">${icon("info")} <span>This build has no Google client ID yet, so Drive is not available — it will keep everything on this device. The five-minute setup is in <b>GOOGLE_DRIVE.md</b>.</span></div>`}
+
+        <p class="lv-welcome__fine">Nothing is uploaded anywhere until you choose, and choosing “only on this device” uploads nothing at all.</p>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  async function connectDriveAndStart() {
+    if (!driveModule()) { toast("Google Drive is not configured in this build"); return; }
+    toast("Opening Google's permission window…");
+    const res = await window.BDDrive.connect();
+    if (!res || !res.ok) {
+      toast((res && res.error) || "Google Drive was not connected");
+      return;
+    }
+    if (res.doc && res.doc.sales) {
+      db = mergeDocs(db, res.doc);
+    }
+    db.settings.storage = "drive";
+    persist({ skipSync: true });
+    const saved = await window.BDDrive.save(db);
+    render();
+    go("home");
+    toast(saved && saved.ok
+      ? "Connected · your books are now saved in your Google Drive"
+      : "Connected · we'll save to Drive as soon as you make a change");
+  }
+
+  function storageBlock() {
+    const drive = window.BDDrive;
+    const st = drive ? drive.status() : { configured: false, connected: false, hasFile: false, lastSaved: 0 };
+    const mode = storageMode();
+    const linked = driveLinked();
+    return `<div class="section-label" style="margin-top:22px"><span class="section-label__title">Storage</span>
+        <span class="pill ${linked ? "pill--success" : ""}">${linked ? "Google Drive" : "This device"}</span>
+      </div>
+      <div class="lv-data-row">
+        <div>
+          <b>${linked ? "Saved in your Google Drive" : "Saved in this browser"}</b>
+          <small>${linked
+            ? `${st.connected ? "Signed in to Google" : "Google session expired — it will reconnect when you save"}${st.lastSaved ? " · last file save " + new Date(st.lastSaved).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : ""}`
+            : "localStorage · bd-live-v1 · this device only"}</small>
+        </div>
+      </div>
+      <div class="lv-actions">
+        ${linked
+          ? `<button class="btn btn--outline" data-act="drive-save">${icon("cloud")} Save to Drive now</button>
+             <button class="btn btn--ghost" data-act="drive-disconnect">Disconnect</button>`
+          : `<button class="btn btn--primary" data-act="drive-connect" ${st.configured ? "" : "disabled"}>${icon("cloud")} Save in my Google Drive</button>`}
+      </div>
+      ${st.configured
+        ? `<p class="lv-hintline" style="text-align:left">The file lives in a hidden app folder in your own Drive (drive.appdata). We cannot read it, and the app cannot see the rest of your Drive.</p>`
+        : `<div class="lv-field">
+             <span class="lv-label">Google client ID</span>
+             <input class="lv-input" id="drive-client-id" placeholder="…apps.googleusercontent.com" autocomplete="off" />
+           </div>
+           <div class="lv-actions">
+             <button class="btn btn--outline" data-act="save-client-id">${icon("check")} Use this client ID</button>
+           </div>
+           <p class="lv-hintline" style="text-align:left">Free to create in five minutes — the steps are in GOOGLE_DRIVE.md. It is a public ID, not a secret.</p>`}`;
+  }
+
   function viewSettings() {
     return `<div class="screen">
       ${statusbar()}
@@ -1939,6 +2061,8 @@
             <button class="btn btn--primary" data-act="save-settings">${icon("check")} Save</button>
           </div>
           <p class="lv-hintline">These details appear on invoices you share.</p>
+
+          ${storageBlock()}
 
           <div class="section-label" style="margin-top:22px"><span class="section-label__title">Where this data lives</span></div>
           <div class="lv-data-row">
@@ -2508,6 +2632,7 @@
     else if (base === "payments") html = viewPayments();
     else if (base === "payment") html = viewPayment(id);
     else if (base === "inventory") html = viewInventory();
+    else if (base === "welcome") html = viewWelcome();
     else if (base === "sale-new") html = viewNewSale();
     else if (base === "expense") html = viewExpense();
     else if (base === "voice") html = viewVoice();
@@ -2516,6 +2641,8 @@
     else html = viewHome();
 
     HOST.innerHTML = html;
+
+    paintStoragePill();
 
     /* conversations open at the latest message, not the oldest */
     const chatBox = $("#chat");
@@ -2873,6 +3000,46 @@
         persist();
         go("more");
         toast("Shop details saved");
+        break;
+      }
+      case "choose-drive":
+        event.preventDefault();
+        connectDriveAndStart();
+        break;
+      case "choose-local":
+        event.preventDefault();
+        db.settings.storage = "local";
+        persist({ skipSync: true });
+        go("home");
+        toast("Saved on this device only — you can add Drive later in Settings");
+        break;
+      case "save-client-id": {
+        event.preventDefault();
+        const value = (($("#drive-client-id") || {}).value || "").trim();
+        if (!value.endsWith(".apps.googleusercontent.com")) { toast("That doesn't look like a Google client ID"); break; }
+        try { localStorage.setItem("bd-google-client", value); } catch (e) { /* ignore */ }
+        render();
+        toast("Client ID saved — you can connect Drive now");
+        break;
+      }
+      case "drive-connect":
+        event.preventDefault();
+        connectDriveAndStart();
+        break;
+      case "drive-save": {
+        event.preventDefault();
+        if (!window.BDDrive) break;
+        window.BDDrive.save(db).then((res) => toast(res.ok ? "Saved to your Google Drive" : "Couldn't save to Drive — the copy on this phone is safe"));
+        break;
+      }
+      case "drive-disconnect": {
+        event.preventDefault();
+        if (!window.confirm("Disconnect Google Drive? The file stays in your Drive; this device will keep working locally.")) break;
+        if (window.BDDrive) window.BDDrive.disconnect();
+        db.settings.storage = "local";
+        persist({ skipSync: true });
+        render();
+        toast("Disconnected · this device only now");
         break;
       }
       case "sync-save": {
@@ -3396,8 +3563,22 @@
     syncNow(false);
   }
 
-  if (db.draft) go("draft");
-  else {
+  /* restart where we were, and quietly re-open the Drive file if this phone used it before */
+  if (db.settings.storage === "drive" && window.BDDrive && window.BDDrive.hasState()) {
+    window.BDDrive.resume().then((res) => {
+      if (res && res.ok && res.doc && Array.isArray(res.doc.sales)) {
+        db = mergeDocs(db, res.doc);
+        persist({ skipSync: true });
+        render();
+      }
+    }).catch(() => { /* offline: local copy keeps working */ });
+  }
+
+  if (!db.settings.storage) {
+    go("welcome");
+  } else if (db.draft) {
+    go("draft");
+  } else {
     const start = (location.hash || "").replace("#", "");
     go(start || "home");
   }

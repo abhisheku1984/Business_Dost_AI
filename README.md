@@ -59,6 +59,7 @@ What it does, end to end:
 | **Payments** | Outstanding by customer, record a receipt (cash/UPI/bank/cheque), see recent receipts and what is still owed |
 | **Expenses** | Categories, notes, and they feed straight into profit |
 | **Your data** | Lives in this browser; export/import a JSON file; resets to a sample shop on demand |
+| **Google Drive** | Optional, on by choice: the books are kept in a hidden app folder in the shopkeeper's own Drive; the app cannot read anything else there. Setup: [`GOOGLE_DRIVE.md`](GOOGLE_DRIVE.md) |
 | **Sync** | Optional: point two phones at one small server (`sync/`) and they share the shop — see [`sync/README.md`](sync/README.md) |
 
 **Where the data lives:** one JSON document in this browser's local storage, key `bd-live-v1` —
