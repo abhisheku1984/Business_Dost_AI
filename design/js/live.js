@@ -3387,6 +3387,10 @@
     version: "1.0",
   };
 
+  /* a brand-new browser should have the key on disk before anything is edited,
+     so Export and the storage panel are never empty */
+  try { if (!localStorage.getItem(KEY)) persist({ skipSync: true }); } catch (e) { /* storage blocked */ }
+
   if (syncReady()) {
     /* a quiet pull on open, so this phone starts from the shared books */
     syncNow(false);
