@@ -1269,7 +1269,202 @@
     </div>`;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* desktop billing counter                                            */
+  /* ------------------------------------------------------------------ */
+  const isWide = () => window.innerWidth >= 900;
+
+  function counterState() {
+    if (!ui.counter) ui.counter = { q: "", sel: 0, method: "UPI", customerId: "", mode: "sale" };
+    const c = ui.counter;
+    if (!c.customerId && db.customers[0]) c.customerId = db.customers[0].id;
+    if (!Array.isArray(ui.cart)) ui.cart = [];
+    return c;
+  }
+
+  function counterMatches() {
+    const c = counterState();
+    const q = String(c.q || "").trim().toLowerCase();
+    const all = db.items.filter((i) => (q ? i.name.toLowerCase().includes(q) : true));
+    return all.slice(0, 40);
+  }
+
+  function counterTotals() {
+    const cart = Array.isArray(ui.cart) ? ui.cart : [];
+    const base = Math.round(cart.reduce((t, l) => t + Number(l.qty) * Number(l.rate), 0));
+    const tax = taxFor(base);
+    return { base, tax, total: tax ? tax.total : base, count: cart.length };
+  }
+
+  function counterAdd(itemId) {
+    const item = db.items.find((i) => i.id === itemId);
+    if (!item) return;
+    const cart = ui.cart;
+    const existing = cart.find((l) => l.itemId === item.id);
+    if (existing) existing.qty = Number(existing.qty) + 1;
+    else cart.push({ itemId: item.id, name: item.name, unit: item.unit, qty: 1, rate: item.rate });
+    counterState().q = "";
+    counterState().sel = 0;
+    render();
+    const el = $("#counter-search");
+    if (el) el.focus();
+  }
+
+  function counterLine(idx, delta) {
+    const line = ui.cart[idx];
+    if (!line) return;
+    const qty = Math.round((Number(line.qty) + delta) * 100) / 100;
+    if (qty <= 0) ui.cart.splice(idx, 1);
+    else line.qty = qty;
+    render();
+  }
+
+  function counterSave(asQuote) {
+    const c = counterState();
+    if (!ui.cart.length) { toast("Add at least one item to the bill"); return; }
+    const lines = ui.cart.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), rate: Number(l.rate) }));
+    try {
+      if (asQuote) {
+        const cust = db.customers.find((x) => x.id === c.customerId) || db.customers[0];
+        const built = lines.map((l) => {
+          const item = db.items.find((i) => i.id === l.itemId) || {};
+          return { itemId: l.itemId, name: item.name || "Item", unit: item.unit || "piece", qty: l.qty, rate: l.rate };
+        });
+        const amount = Math.round(built.reduce((t, l) => t + l.qty * l.rate, 0));
+        const quote = {
+          id: uid("q"), no: nextQuoteNo(), at: Date.now(), date: dayKey(),
+          customerId: c.customerId, customerName: cust ? cust.name : "Customer",
+          lines: built, amount, status: "open",
+          validTill: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
+        };
+        db.quotes.unshift(quote);
+        persist();
+        ui.cart = [];
+        route(`quote:${quote.id}`);
+        toast(`Quotation Q-${quote.no} saved · ${money(amount)}`);
+        return;
+      }
+      const sale = addSale({ customerId: c.customerId, method: c.method, lines });
+      logAct("Sale saved", `#INV-${sale.no} · ${money(sale.amount)}`);
+      ui.cart = [];
+      c.q = "";
+      route(`sale:${sale.id}`);
+      toast(`Saved · ${money(sale.amount)} · #INV-${sale.no}`);
+    } catch (err) {
+      toast(err.message || "Could not save that bill");
+    }
+  }
+
+  function counterResultsHtml() {
+    const c = counterState();
+    const list = counterMatches();
+    if (!list.length) return `<div class="lv-empty"><b>Nothing matches “${esc(c.q)}”.</b><br/>Check the spelling, or add it under Products.</div>`;
+    return list.map((i, idx) => {
+      const service = isService(i);
+      const low = !service && Number(i.stock) <= Number(i.low);
+      return `<button class="ctr-row ${idx === c.sel ? "is-sel" : ""}" data-act="counter-add" data-id="${i.id}">
+        <span class="ctr-row__name">
+          <b>${esc(i.name)}</b>
+          <small>${service ? "Service" : `${i.stock} ${i.unit} in stock`}${i.hsn ? " · HSN " + esc(i.hsn) : ""}</small>
+        </span>
+        <span class="ctr-row__meta">
+          ${low ? `<span class="pill pill--warn" style="height:20px">low</span>` : ""}
+          <b class="num">${money(i.rate)}</b><small>/${i.unit}</small>
+        </span>
+      </button>`;
+    }).join("");
+  }
+
+  function viewCounter() {
+    const c = counterState();
+    const cart = ui.cart;
+    const t = counterTotals();
+    const quote = c.mode === "quote";
+
+    return `<div class="screen screen--counter">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>${quote ? "New quotation" : "New sale"}</h1>
+          <div class="lv-seg lv-seg--sm" id="counter-mode">
+            <button type="button" data-act="counter-mode" data-mode="sale" class="${quote ? "" : "is-on"}">Sale</button>
+            <button type="button" data-act="counter-mode" data-mode="quote" class="${quote ? "is-on" : ""}">Quotation</button>
+          </div>
+        </div>
+
+        <div class="ctr">
+          <section class="ctr-main">
+            <div class="ctr-search">
+              ${icon("search")}
+              <input id="counter-search" autocomplete="off" spellcheck="false"
+                placeholder="Search products and services"
+                value="${esc(c.q)}" aria-label="Search products" />
+              <span class="ctr-search__hint">↑↓ to move · Enter to add</span>
+            </div>
+            <div class="ctr-results" id="counter-results">${counterResultsHtml()}</div>
+          </section>
+
+          <aside class="ctr-bill">
+            <div class="ctr-bill__head">
+              <span>${quote ? "Quotation" : "Bill"}</span>
+              <span class="pill ${cart.length ? "pill--success" : ""}">${cart.length} ${cart.length === 1 ? "line" : "lines"}</span>
+            </div>
+
+            <div class="ctr-field">
+              <span class="lv-label">Customer</span>
+              <select class="lv-select" id="counter-customer">
+                ${db.customers.map((x) => `<option value="${x.id}" ${x.id === c.customerId ? "selected" : ""}>${esc(x.name)}</option>`).join("")}
+                <option value="__new" ${c.customerId === "__new" ? "selected" : ""}>＋ New customer…</option>
+              </select>
+            </div>
+            ${c.customerId === "__new" ? `<input class="lv-input" id="counter-newcustomer" placeholder="Customer name" value="${esc(c.newCustomer || "")}" style="margin-top:8px" />` : ""}
+
+            <div class="ctr-lines" id="counter-lines">
+              ${cart.length ? cart.map((l, idx) => {
+                const item = db.items.find((i) => i.id === l.itemId) || {};
+                const over = item.stock != null && !isService(item) && Number(l.qty) > Number(item.stock);
+                return `<div class="ctr-line ${over ? "is-over" : ""}">
+                  <div class="ctr-line__name">
+                    <b>${esc(l.name)}</b>
+                    <small>${over ? `only ${item.stock} ${item.unit} left` : `${esc(l.unit)} · ${money(l.rate)} each`}</small>
+                  </div>
+                  <div class="ctr-step">
+                    <button data-act="counter-qty" data-idx="${idx}" data-delta="-1" aria-label="Less">−</button>
+                    <input class="ctr-step__qty" data-counter-qty="${idx}" value="${l.qty}" inputmode="decimal" aria-label="Quantity for ${esc(l.name)}" />
+                    <button data-act="counter-qty" data-idx="${idx}" data-delta="1" aria-label="More">+</button>
+                  </div>
+                  <b class="ctr-line__total num">${money(l.qty * l.rate)}</b>
+                  <button class="lv-bill__x" data-act="counter-remove" data-idx="${idx}" aria-label="Remove ${esc(l.name)}">${icon("close")}</button>
+                </div>`;
+              }).join("") : `<div class="ctr-empty">${icon("bag")}<b>No items yet</b><span>Search on the left and press Enter.</span></div>`}
+            </div>
+
+            <div class="ctr-totals">
+              ${t.tax ? `<div class="ctr-sum"><span>Taxable</span><b class="num">${money(t.base)}</b></div>
+                <div class="ctr-sum"><span>GST ${t.tax.rate}%</span><b class="num">${money(t.tax.total - t.base)}</b></div>` : ""}
+              <div class="ctr-sum ctr-sum--total"><span>Total</span><b class="num">${money(t.total)}</b></div>
+            </div>
+
+            ${quote ? "" : `<div class="lv-seg" id="counter-method" style="margin-top:10px">
+              ${["UPI", "Cash", "Udhaar"].map((m) => `<button type="button" data-act="counter-method" data-method="${m}" class="${c.method === m ? "is-on" : ""}">${m}</button>`).join("")}
+            </div>`}
+
+            <div class="ctr-actions">
+              <button class="btn btn--primary" data-act="counter-save" ${cart.length ? "" : "disabled"}>
+                ${icon("check")} ${quote ? "Save quotation" : `Save sale · ${money(t.total)}`}
+              </button>
+            </div>
+            <p class="lv-hintline" style="text-align:left">${quote ? "Quotations don’t touch stock." : "Stock comes off when you save. Press <b>N</b> for another bill."}</p>
+          </aside>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
   function viewNewSale() {
+    if (isWide()) return viewCounter();
     const s = ui.sale;
     const cart = Array.isArray(ui.cart) ? ui.cart : [];
     const item = db.items.find((i) => i.id === s.itemId) || db.items[0];
@@ -3513,6 +3708,13 @@
     const scroller = HOST.querySelector(".screen__scroll");
     if (scroller) scroller.scrollTop = 0;
     paintVoice();
+
+    if (ui.route === "sale-new") {
+      const search = $("#counter-search");
+      if (search) search.focus();
+      const typeBox = $("#sale-qty");
+      if (typeBox) typeBox.focus();
+    }
   }
 
   const TABS = new Set(["home", "sales", "customers", "stock", "more", "voice"]);
@@ -3985,6 +4187,35 @@
       case "save-sale":
         event.preventDefault();
         saveSale();
+        break;
+      case "counter-add":
+        event.preventDefault();
+        counterAdd(act.getAttribute("data-id"));
+        break;
+      case "counter-qty":
+        event.preventDefault();
+        counterLine(Number(act.getAttribute("data-idx")), Number(act.getAttribute("data-delta")) || 0);
+        break;
+      case "counter-remove":
+        event.preventDefault();
+        ui.cart.splice(Number(act.getAttribute("data-idx")), 1);
+        render();
+        break;
+      case "counter-mode": {
+        event.preventDefault();
+        counterState().mode = act.getAttribute("data-mode") === "quote" ? "quote" : "sale";
+        render();
+        break;
+      }
+      case "counter-method": {
+        event.preventDefault();
+        counterState().method = act.getAttribute("data-method") || "UPI";
+        render();
+        break;
+      }
+      case "counter-save":
+        event.preventDefault();
+        counterSave(counterState().mode === "quote");
         break;
       case "save-expense": {
         event.preventDefault();
@@ -4750,7 +4981,67 @@
     }
   }
 
+  document.addEventListener("input", (event) => {
+    const t = event.target;
+    if (t && t.id === "counter-search") {
+      counterState().q = t.value;
+      counterState().sel = 0;
+      const box = $("#counter-results");
+      if (box) box.innerHTML = counterResultsHtml();
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    const t = event.target;
+    if (!t) return;
+    if (t.id === "counter-customer") {
+      counterState().customerId = t.value;
+      render();
+    }
+    if (t.id === "counter-newcustomer") counterState().newCustomer = t.value;
+    if (t.dataset && t.dataset.counterQty != null) {
+      const idx = Number(t.dataset.counterQty);
+      const line = ui.cart[idx];
+      if (!line) return;
+      const qty = num(t.value);
+      if (qty <= 0) ui.cart.splice(idx, 1);
+      else line.qty = qty;
+      render();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
+    const ct = event.target;
+    if (ct && ct.id === "counter-search") {
+      const c = counterState();
+      const list = counterMatches();
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (!list.length) return;
+        c.sel = Math.max(0, Math.min(list.length - 1, (c.sel || 0) + (event.key === "ArrowDown" ? 1 : -1)));
+        const box = $("#counter-results");
+        if (box) {
+          box.innerHTML = counterResultsHtml();
+          const active = box.children[c.sel];
+          if (active && active.scrollIntoView) active.scrollIntoView({ block: "nearest" });
+        }
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const pick = list[c.sel || 0];
+        if (pick) counterAdd(pick.id);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        c.q = "";
+        ct.value = "";
+        const box = $("#counter-results");
+        if (box) box.innerHTML = counterResultsHtml();
+        return;
+      }
+    }
     if (event.key === "Enter" && event.target && event.target.id === "ask-input") {
       event.preventDefault();
       askSend(event.target.value);
@@ -4789,6 +5080,19 @@
   try { saved = localStorage.getItem("bd-theme"); } catch (e) { /* ignore */ }
   setTheme(saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
   if (themeBtn) themeBtn.addEventListener("click", () => setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+
+  /* switching between a narrow and a wide window changes the sale screen itself */
+  let wasWide = isWide();
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      if (isWide() !== wasWide) {
+        wasWide = isWide();
+        render();
+      }
+    }, 200);
+  });
 
   const homeBtn = document.getElementById("home-btn");
   if (homeBtn) homeBtn.addEventListener("click", () => go("home"));
