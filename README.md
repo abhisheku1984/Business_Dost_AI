@@ -128,6 +128,7 @@ design/
     screens.js          The 16 screens as data + markup (window.BD_SCREENS)
     assistant.js        Interactive voice flow: listening → thinking → draft → approve
     live.js             The working app — all screens, actions and the rule-based Dost
+    desktop.css         The desktop layer: left rail, two-column dashboard, A4 print
     drive.js            Google Drive storage (opt-in): connect, save, resume, disconnect
     drive-config.js     Your OAuth client ID lives here (empty = on-device only)
   assets/fonts/         Inter Variable + Noto Sans Devanagari (self-hosted, OFL)
@@ -139,6 +140,20 @@ run.bat / run.command / run.sh   One-click local launchers
 ```
 
 ---
+
+## Desktop build
+
+`design/live.html` is now a **desktop app**: a permanent left rail with grouped navigation, a
+two-column dashboard, full-height windows, keyboard shortcuts (`n` sale, `c` customer, `a` Ask Dost,
+`r` reports, `d` dashboard, `Esc` back) and an A4 print view for invoices. Below 900 px the old phone
+layout still renders, but it is deliberately not the focus right now.
+
+**Publishing on Render:** push the repo, then Render → New → Blueprint (it reads `render.yaml`).
+Static site, publish directory `design`, app at the domain root. One manual step is unavoidable:
+add `https://your-app.onrender.com` to the OAuth client's *Authorized JavaScript origins* in Google
+Cloud Console, or Drive sign-in fails with `origin_mismatch`.
+
+Full steps, plus the honest answer on when Supabase would ever be needed: [`DESKTOP.md`](DESKTOP.md).
 
 ## What the working app actually does
 

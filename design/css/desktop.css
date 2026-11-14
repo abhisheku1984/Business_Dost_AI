@@ -290,26 +290,50 @@
 
 /* ---------- print: the invoice on A4 ---------- */
 @media print {
-  .app-bar, .dk-side, .hint, .toast, .statusbar, .tabbar, .indicator,
-  .lv-appbar [data-act="back"], .lv-actions, .lv-note, .lv-msg__speak { display: none !important; }
-  .stage, .stage__inner, .workspace, .dk-content, .device, .screen, .screen__scroll {
+  @page { size: A4; margin: 16mm; }
+
+  html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+
+  /* the chrome does not need to reserve space on paper */
+  .app-bar, .dk-side, .hint, .toast, .tabbar, .statusbar, .indicator { display: none !important; }
+  .stage { position: relative !important; }
+
+  /* hide the app chrome without collapsing the page */
+  body * { visibility: hidden !important; }
+  .invoice-card, .invoice-card * { visibility: visible !important; }
+
+  /* unclip every wrapper so nothing gets cut off */
+  .stage, .stage__inner, .workspace, .dk-content, .device, .screen,
+  .screen__scroll, .sbody {
+    position: static !important;
     display: block !important;
     height: auto !important;
+    max-height: none !important;
     overflow: visible !important;
     padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
+    zoom: 1 !important;
   }
-  .sbody { max-width: none !important; }
+
   .invoice-card {
+    position: absolute !important;
+    left: 0; top: 0;
+    width: 178mm !important;
+    max-width: 178mm !important;
+    padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
-    padding: 0 !important;
-    color: #000 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    padding-top: 3mm !important;
     page-break-inside: avoid;
   }
-  .invoice-card * { color: #000 !important; }
-  .lr-head { border-bottom: 2px solid #000 !important; }
-  .lr-lines { border-bottom: 1px solid #999 !important; }
-  @page { margin: 16mm; }
+  .screen, .screen--enter, .invoice-card { opacity: 1 !important; animation: none !important; transition: none !important; }
+  .invoice-card * { color: #000 !important; border-color: #b9b9b9 !important; }
+  .invoice-card .lr-head { border-bottom: 2px solid #000 !important; padding-bottom: 10px !important; }
+  .invoice-card .lr-total, .invoice-card .lr-sum b { font-size: 18pt !important; }
+  .invoice-card .lr-row { border-bottom: 1px solid #dcdcdc !important; }
 }
