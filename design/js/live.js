@@ -4474,10 +4474,15 @@
         event.preventDefault();
         window.print();
         break;
-      case "back":
+      case "back": {
         event.preventDefault();
+        const cameFrom = ui.itemReturn;
         ui.itemDraft = null;
+        if (cameFrom === "counter") { ui.itemReturn = null; go("sale-new"); break; }
+        if (cameFrom === "purchase") { ui.itemReturn = null; go("purchase-new"); break; }
         go(homeFor(ui.route));
+        break;
+      }
         break;
       case "newsale":
         event.preventDefault();
@@ -5317,6 +5322,7 @@
         </div>
       </div>`;
 
+    document.body.dataset.route = base;
     document.body.classList.toggle("is-welcome", base === "welcome");
     document.body.classList.toggle("is-voice", base === "voice");
 

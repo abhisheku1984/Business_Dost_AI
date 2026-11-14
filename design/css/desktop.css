@@ -92,7 +92,14 @@
   }
   .shead { margin-bottom: 4px; }
   .lv-appbar { padding: 0 0 10px; margin-bottom: 6px; }
-  .lv-appbar [data-act="back"] { display: none; } /* the rail is the way back */
+  /* the rail is the way back from a top-level screen; every nested screen keeps its arrow */
+  body:is([data-route="home"], [data-route="sales"], [data-route="customers"], [data-route="stock"],
+          [data-route="purchases"], [data-route="suppliers"], [data-route="payments"],
+          [data-route="expenses"], [data-route="reports"], [data-route="profit"],
+          [data-route="inventory"], [data-route="documents"], [data-route="ask"],
+          [data-route="reminders"], [data-route="users"], [data-route="audit"],
+          [data-route="plan"], [data-route="more"], [data-route="settings"])
+    .lv-appbar [data-act="back"] { display: none; }
   .lv-appbar h1 { font-size: 22px; letter-spacing: -0.02em; }
   .lv-ask { height: 100%; }
 
