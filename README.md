@@ -16,13 +16,11 @@ built for review before the production app is implemented.
 
 No build step and no network needed — all fonts and icons are local.
 
-```bash
-python3 -m http.server 4173 --directory design
-# then open http://localhost:4173
-```
+- **Run it on your computer:** see [`RUN.md`](RUN.md) — double-click `design/index.html`, or use the
+  one-click launcher (`run.bat`, `run.command`, `run.sh`).
+- **Terminal:** `python3 -m http.server 4173 --directory design` then open <http://localhost:4173>.
 
-Or simply open `design/index.html` in a browser. The page works offline and is designed for both
-desktop review and a 390 px phone.
+The page works offline and is designed for both desktop review and a 390 px phone.
 
 What to do first:
 
@@ -53,6 +51,8 @@ design/
   tokens.json           Machine-readable token mirror
 docs/
   DESIGN_SYSTEM.md      Principles, colour, type, components, motion, AI model, a11y
+RUN.md                  Install-free instructions for Windows, macOS and Linux
+run.bat / run.command / run.sh   One-click local launchers
 ```
 
 ---
