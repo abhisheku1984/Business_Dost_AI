@@ -43,7 +43,7 @@
 .lv-metric span { font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
 
 /* quick actions */
-.lv-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+.lv-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 .lv-quick button {
   display: grid;
   justify-items: center;
@@ -546,3 +546,16 @@
   }
   .invoice-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* multi-item bill */
+.lv-bill { margin-bottom: 4px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.lv-bill__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); }
+.lv-bill__row:last-child { border-bottom: 0; }
+.lv-bill__row b { display: block; font-size: 12.5px; }
+.lv-bill__row small { display: block; font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+.lv-bill__end { display: flex; align-items: center; gap: 8px; }
+.lv-bill__x { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink-3); cursor: pointer; }
+.lv-bill__x .i { width: 12px; height: 12px; }
+.lv-total__tax { font-style: normal; font-size: 10.5px; color: var(--ink-3); margin-left: 4px; }
+.lr-sum--sub { border-top: 0; padding: 4px 0; font-size: 11.5px; color: var(--ink-3); font-weight: var(--fw-regular); }
+.lr-sum--sub b { font-size: 12px; font-weight: var(--fw-medium); color: var(--ink-2); }

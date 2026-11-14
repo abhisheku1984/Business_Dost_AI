@@ -37,6 +37,13 @@ Open **`live.html`** (`http://localhost:4173/live.html`) in Chrome or Edge.
   *“what's running low?”*, *“rate of cement”*. Every answer is computed from your own data.
 - **Send an invoice**: Sales → any sale → **Send on WhatsApp** (or Print/PDF, or Copy text).
 - **Reports**: More → Reports — 14 days of sales, top products, best customers, expense split.
+- **A bill with two products**: New sale → qty → **Add another item** → pick the second product → Save.
+  One invoice, two lines, both stock counts move.
+- **Quotation → invoice**: new sale → switch to **Quotation** → Save quotation → open it →
+  **Convert to invoice**. Stock moves only at conversion.
+- **Payments**: More → Payments & outstanding → tap a customer → amount, how it came, record.
+- **GST**: Settings → GST on bills (5/12/18/28) and whether your prices include it. Invoices show
+  taxable value, CGST and SGST.
 
 - [ ] My own sale ended up on the dashboard
 - [ ] It survived a reload

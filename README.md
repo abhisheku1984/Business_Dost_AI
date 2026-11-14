@@ -54,7 +54,9 @@ What it does, end to end:
 | **Profit** | Real cost of goods: sales − cost − expenses, margin, and which product actually earned the money |
 | **Reports** | Sales day by day, top products, best customers, where money went, stock value, oldest due |
 | **Ask Dost** | “Who owes me money?”, “What's running low?”, “Rate of cement?” — answered from your own books, on the device, no AI key needed |
-| **Invoices** | Open any sale: shop name, GSTIN, invoice number, lines — send on WhatsApp, print/PDF, or copy the text |
+| **Invoices** | Multi-item bills: build a basket, then save one invoice. Shop name, GSTIN, number, CGST/SGST when GST is on — send on WhatsApp, print/PDF, or copy the text |
+| **Quotations** | Quote a price without touching stock; mark sent/accepted; convert to an unpaid invoice in one tap |
+| **Payments** | Outstanding by customer, record a receipt (cash/UPI/bank/cheque), see recent receipts and what is still owed |
 | **Expenses** | Categories, notes, and they feed straight into profit |
 | **Your data** | Lives in this browser; export/import a JSON file; resets to a sample shop on demand |
 

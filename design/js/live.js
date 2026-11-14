@@ -132,9 +132,10 @@
       payments: [],
       expenses: [{ id: "e1", date: today, at: Date.now() - 3 * 36e5, amount: 300, category: "Transport", note: "Tempo to site" }],
       draft: null,
+      quotes: [],
       chat: [],
       meta: {},
-      settings: { lang: "en-IN" },
+      settings: { lang: "en-IN", gst: { rate: 0, inclusive: true } },
     };
   }
 
@@ -145,10 +146,12 @@
       const data = JSON.parse(raw);
       if (!data || !Array.isArray(data.items)) return seed();
       data.settings = data.settings || { lang: "en-IN" };
+      data.settings.gst = data.settings.gst || { rate: 0, inclusive: true };
       data.payments = data.payments || [];
       data.expenses = data.expenses || [];
       data.draft = data.draft || null;
       data.chat = Array.isArray(data.chat) ? data.chat : [];
+      data.quotes = Array.isArray(data.quotes) ? data.quotes : [];
 
       /* Data saved before cost prices existed: assume a typical margin rather
          than pretend profit is 100%. The screen says "estimated" when so. */
@@ -294,14 +297,51 @@
     return [...map.values()].sort((a, b) => b.value - a.value);
   }
 
-  function addSale({ customerId, customerName, itemId, qty, rate, method }) {
-    const item = db.items.find((i) => i.id === itemId);
+  /* GST: one rate for the shop, either inside the price you quote or added on top. */
+  function taxFor(base) {
+    const gst = (db.settings && db.settings.gst) || { rate: 0, inclusive: true };
+    const rate = Number(gst.rate) || 0;
+    if (!rate) return null;
+    const inclusive = gst.inclusive !== false;
+    const taxable = inclusive ? base * (100 / (100 + rate)) : base;
+    const tax = Math.round(inclusive ? base - taxable : base * (rate / 100));
+    const half = Math.round(tax / 2);
+    return {
+      rate,
+      inclusive,
+      taxable: Math.round(taxable),
+      cgst: half,
+      sgst: tax - half,
+      tax,
+      total: Math.round(inclusive ? base : base + tax),
+    };
+  }
+
+  function addSale({ customerId, customerName, itemId, qty, rate, method, lines }) {
     const cust = db.customers.find((c) => c.id === customerId) || { id: customerId, name: customerName || "Walk-in" };
-    if (!item) throw new Error("Pick an item");
-    const q = Number(qty) || 0;
-    if (q <= 0) throw new Error("Quantity must be more than zero");
-    const r = Number(rate) || item.rate;
-    const amount = Math.round(q * r);
+
+    let wanted = [];
+    if (Array.isArray(lines) && lines.length) {
+      wanted = lines.map((l) => ({ ...l }));
+    } else {
+      const item = db.items.find((i) => i.id === itemId);
+      if (!item) throw new Error("Pick an item");
+      wanted = [{ itemId, qty, rate: Number(rate) || item.rate }];
+    }
+
+    const built = wanted.map((l) => {
+      const item = db.items.find((i) => i.id === l.itemId);
+      if (!item) throw new Error("One of those products no longer exists");
+      const q = Number(l.qty) || 0;
+      if (q <= 0) throw new Error(`Quantity for ${item.name} must be more than zero`);
+      const r = Number(l.rate) || item.rate;
+      return { itemId: item.id, name: item.name, qty: q, rate: r, unit: item.unit, cost: Number(item.buy) || 0 };
+    });
+
+    const base = Math.round(built.reduce((t, l) => t + l.qty * l.rate, 0));
+    const tax = taxFor(base);
+    const amount = tax ? tax.total : base;
+
     const sale = {
       id: uid("s"),
       no: nextNo(),
@@ -309,14 +349,20 @@
       at: Date.now(),
       customerId: cust.id,
       customerName: cust.name,
-      lines: [{ itemId, name: item.name, qty: q, rate: r, unit: item.unit, cost: Number(item.buy) || 0 }],
+      lines: built,
+      base,
       amount,
-      cost: Math.round(q * (Number(item.buy) || 0)),
+      tax,
+      cost: Math.round(built.reduce((t, l) => t + l.qty * l.cost, 0)),
       method: method || "UPI",
- 	    paid: (method || "UPI") !== "Udhaar",
+      paid: (method || "UPI") !== "Udhaar",
     };
+
     db.sales.unshift(sale);
-    item.stock = Math.max(0, Math.round((Number(item.stock) - q) * 100) / 100);
+    built.forEach((l) => {
+      const item = db.items.find((i) => i.id === l.itemId);
+      if (item) item.stock = Math.max(0, Math.round((Number(item.stock) - l.qty) * 100) / 100);
+    });
     persist();
     return sale;
   }
@@ -486,6 +532,7 @@
     voice: { live: false, heard: "", interim: "", typing: false, error: "" },
     sale: { customerId: db.customers[0] ? db.customers[0].id : "", itemId: db.items[0] ? db.items[0].id : "", qty: 1, rate: db.items[0] ? db.items[0].rate : 0, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" },
     profit: { days: 1 },
+    cart: [],
     reports: { days: 7 },
     ask: { typing: false },
   };
@@ -722,7 +769,9 @@
 
           <div class="lv-quick">
             <button data-act="newsale"><span class="lv-tile lv-tile--brand">${icon("plus")}</span>New sale</button>
+            <button data-act="new-quote"><span class="lv-tile">${icon("sales")}</span>Quotation</button>
             <button data-act="expense"><span class="lv-tile">${icon("wallet")}</span>Expense</button>
+            <button data-nav="payments"><span class="lv-tile">${icon("card")}</span>Payment</button>
             <button data-nav="stock"><span class="lv-tile">${icon("box")}</span>Stock</button>
             <button data-nav="profit"><span class="lv-tile lv-tile--ai">${icon("chart")}</span>Profit</button>
           </div>
@@ -806,6 +855,7 @@
       "",
       lines,
       "",
+      sale.tax ? `Taxable ${money(sale.tax.taxable)} · CGST ${money(sale.tax.cgst)} · SGST ${money(sale.tax.sgst)}` : "",
       `*Total: ${money(sale.amount)}*`,
       sale.paid ? `Paid by ${sale.method}. Thank you!` : `On udhaar — ${money(customerDue(sale.customerId))} pending in all.`,
     ].filter(Boolean).join("\n");
@@ -843,7 +893,10 @@
               <div class="lr-total">${money(sale.amount)}</div>
             </div>
             <div class="lr-lines">${lines}</div>
-            <div class="lr-sum"><span>Total</span><b>${money(sale.amount)}</b></div>
+            ${sale.tax ? `<div class="lr-sum lr-sum--sub"><span>Taxable value</span><b>${money(sale.tax.taxable)}</b></div>
+            <div class="lr-sum lr-sum--sub"><span>CGST ${(sale.tax.rate / 2).toFixed(1).replace(".0", "")}%</span><b>${money(sale.tax.cgst)}</b></div>
+            <div class="lr-sum lr-sum--sub"><span>SGST ${(sale.tax.rate / 2).toFixed(1).replace(".0", "")}%</span><b>${money(sale.tax.sgst)}</b></div>` : ""}
+            <div class="lr-sum"><span>Total${sale.tax ? " (incl. GST)" : ""}</span><b>${money(sale.amount)}</b></div>
           </section>
           <div class="lv-actions" style="margin-top:14px">
             <button class="btn btn--primary" data-act="share-invoice" data-id="${sale.id}">${icon("message")} Send on WhatsApp</button>
@@ -1097,17 +1150,29 @@
 
   function viewNewSale() {
     const s = ui.sale;
+    const cart = Array.isArray(ui.cart) ? ui.cart : [];
     const item = db.items.find((i) => i.id === s.itemId) || db.items[0];
-    const customer = db.customers.find((c) => c.id === s.customerId);
-    const total = Math.round(Number(s.qty || 0) * Number(s.rate || 0));
+    const qty = Number(s.qty) || 0;
+    const rate = Number(s.rate) || 0;
+    const lineTotal = Math.round(qty * rate);
+    const cartTotal = cart.reduce((t, l) => t + l.qty * l.rate, 0);
+    const base = Math.round(cartTotal + lineTotal);
+    const tax = taxFor(base);
+    const total = tax ? tax.total : base;
+
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
-          <h1>New sale</h1>
+          <h1>${s.mode === "quote" ? "New quotation" : "New sale"}</h1>
+          ${cart.length ? `<span class="pill pill--success">${cart.length} in bill</span>` : ""}
         </div>
         <div class="lv-form">
+          <div class="lv-seg" id="sale-mode" style="margin-bottom:14px">
+            <button type="button" data-act="sale-mode" data-mode="sale" class="${s.mode !== "quote" ? "is-on" : ""}">Sale</button>
+            <button type="button" data-act="sale-mode" data-mode="quote" class="${s.mode === "quote" ? "is-on" : ""}">Quotation</button>
+          </div>
           <div class="lv-field">
             <span class="lv-label">Customer</span>
             <select class="lv-select" id="sale-customer">
@@ -1116,8 +1181,22 @@
             </select>
           </div>
           ${s.customerId === "__new" ? `<div class="lv-field"><span class="lv-label">Name</span><input class="lv-input" id="sale-newcustomer" placeholder="Customer name" value="${esc(s.newCustomer || "")}" /></div>` : ""}
+
+          ${cart.length ? `<div class="lv-bill">
+            ${cart.map((l, idx) => `<div class="lv-bill__row">
+              <div>
+                <b>${esc(l.name)}</b>
+                <small>${l.qty} × ${money(l.rate)}</small>
+              </div>
+              <span class="lv-bill__end">
+                <b class="num">${money(l.qty * l.rate)}</b>
+                <button class="lv-bill__x" data-act="rm-line" data-idx="${idx}" aria-label="Remove ${esc(l.name)}">${icon("close")}</button>
+              </span>
+            </div>`).join("")}
+          </div>` : ""}
+
           <div class="lv-field">
-            <span class="lv-label">Item</span>
+            <span class="lv-label">${cart.length ? "Add another item" : "Item"}</span>
             <select class="lv-select" id="sale-item">
               ${db.items.map((i) => `<option value="${i.id}" ${i.id === s.itemId ? "selected" : ""}>${esc(i.name)} — ${money(i.rate)}/${i.unit} · ${i.stock} left</option>`).join("")}
               <option value="__new" ${s.itemId === "__new" ? "selected" : ""}>＋ New product…</option>
@@ -1155,10 +1234,18 @@
               ${["UPI", "Cash", "Udhaar"].map((m) => `<button type="button" data-method="${m}" aria-pressed="${s.method === m}">${m}</button>`).join("")}
             </div>
           </div>
-          <div class="lv-total"><span>Total</span><b id="sale-total">${money(total)}</b></div>
-          <p class="lv-hintline" id="sale-stockhint">Stock left after this sale: ${Math.max(0, item.stock - Number(s.qty || 0))} ${item.unit}</p>
+
+          <div class="lv-total">
+            <span>Total${tax ? ` <em class="lv-total__tax">incl. ${tax.rate}% GST</em>` : ""}</span>
+            <b id="sale-total">${money(total)}</b>
+          </div>
+          <p class="lv-hintline" id="sale-stockhint">${s.mode === "quote" ? "Quotations don’t touch stock — they only become a bill when you convert one." : `Stock left after this sale: ${Math.max(0, item.stock - qty)} ${item.unit}${db.items.length > 1 ? " · use “Add another item” for a multi-product bill" : ""}`}</p>
+
           <div class="lv-actions">
-            <button class="btn btn--primary" data-act="save-sale">${icon("check")} Save sale</button>
+            ${s.mode === "quote"
+              ? `<button class="btn btn--primary" data-act="save-quote">${icon("check")} Save quotation</button>`
+              : `<button class="btn btn--primary" data-act="save-sale">${icon("check")} ${cart.length + (qty > 0 ? 1 : 0) > 1 ? `Save sale · ${cart.length + (qty > 0 ? 1 : 0)} items` : "Save sale"}</button>`}
+            ${qty > 0 && db.items.length > 1 ? `<button class="btn btn--outline" data-act="add-line">${icon("plus")} Add another item</button>` : ""}
           </div>
         </div>
       </div>
@@ -1473,6 +1560,11 @@
           </div>
 
           <div class="lv-cards" style="margin-top:18px">
+            <div class="lv-metric"><b class="num">${money(st.list.reduce((t, x) => t + ((x.tax && x.tax.tax) || 0), 0))}</b><span>GST collected</span></div>
+            <div class="lv-metric"><b class="num">${money(st.list.reduce((t, x) => t + (x.tax ? x.tax.taxable : x.amount), 0))}</b><span>Taxable sales</span></div>
+          </div>
+
+          <div class="lv-cards" style="margin-top:10px">
             <div class="lv-metric"><b class="num">${money(stockRetail)}</b><span>Stock at selling</span></div>
             <div class="lv-metric"><b class="num">${money(stockCost)}</b><span>Stock at cost</span></div>
             <div class="lv-metric"><b class="num">${money(due)}</b><span>Udhaar out</span></div>
@@ -1767,6 +1859,21 @@
               <input class="lv-input" id="set-gstin" value="${esc(db.shop.gstin || "")}" placeholder="Optional" />
             </div>
           </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">GST on bills</span>
+              <select class="lv-select" id="set-gst">
+                ${[0, 5, 12, 18, 28].map((r) => `<option value="${r}" ${Number((db.settings.gst || {}).rate || 0) === r ? "selected" : ""}>${r ? r + "%" : "No GST"}</option>`).join("")}
+              </select>
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Your prices</span>
+              <select class="lv-select" id="set-gstmode">
+                <option value="in" ${(db.settings.gst || {}).inclusive !== false ? "selected" : ""}>include GST</option>
+                <option value="ex" ${(db.settings.gst || {}).inclusive === false ? "selected" : ""}>GST on top</option>
+              </select>
+            </div>
+          </div>
           <div class="lv-field">
             <span class="lv-label">Dost speaks</span>
             <select class="lv-select" id="set-lang">
@@ -1778,6 +1885,205 @@
             <button class="btn btn--primary" data-act="save-settings">${icon("check")} Save</button>
           </div>
           <p class="lv-hintline">These details appear on invoices you share.</p>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* quotations                                                         */
+  /* ------------------------------------------------------------------ */
+  const nextQuoteNo = () => db.quotes.reduce((m, q) => Math.max(m, Number(q.no) || 1000), 1000) + 1;
+  const quoteStatus = (q) => q.status || "open";
+
+  function viewQuotes() {
+    const list = db.quotes.slice().sort((a, b) => b.at - a.at);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row">
+            <h1 class="t-title1">Quotations</h1>
+            <button class="btn btn--primary btn--sm" data-act="new-quote">${icon("plus")} New quote</button>
+          </div>
+          <p class="shead__sub t-subhead">A price you promised, before it becomes a bill. Convert one when the customer says yes.</p>
+        </div>
+        <div class="sbody">
+          <div class="people">
+            ${list.length ? list.map((q) => `<button class="lv-row-btn" data-nav="quote:${q.id}">
+                <span class="icon-tile icon-tile--brand">${icon("sales")}</span>
+                <span class="row__body">
+                  <span class="lv-row-title">${esc(q.customerName)} · Q-${q.no}</span>
+                  <span class="lv-row-sub">${new Date(q.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${q.lines.length} ${q.lines.length === 1 ? "item" : "items"} · ${quoteStatus(q)}</span>
+                </span>
+                <span class="row__end"><span class="lv-row-amount">${money(q.amount)}</span></span>
+              </button>`).join("") : `<div class="lv-empty"><b>No quotations yet.</b><br/>Use New quote to send a price to a customer.</div>`}
+          </div>
+        </div>
+      </div>
+      ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewQuote(id) {
+    const q = db.quotes.find((x) => x.id === id);
+    if (!q) return viewQuotes();
+    const status = quoteStatus(q);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Quote Q-${q.no}</h1>
+          <span class="pill ${status === "accepted" ? "pill--success" : status === "declined" ? "pill--warn" : ""}">${status}</span>
+        </div>
+        <div class="sbody">
+          <section class="invoice-card">
+            <div class="lr-head">
+              <div>
+                <div class="lr-shop">${esc(db.shop.name)}</div>
+                <div class="lr-meta">Quotation Q-${q.no}${q.validTill ? " · valid till " + new Date(q.validTill).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}</div>
+                <div class="lr-cust" style="margin-top:6px">${esc(q.customerName)}</div>
+                <div class="lr-meta">${new Date(q.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
+              <div class="lr-total">${money(q.amount)}</div>
+            </div>
+            <div class="lr-lines">
+              ${q.lines.map((l) => `<div class="lr-row">
+                <span>${esc(l.name)}<small>${l.qty} × ${money(l.rate)}</small></span>
+                <b>${money(l.qty * l.rate)}</b>
+              </div>`).join("")}
+            </div>
+            <div class="lr-sum"><span>Total</span><b>${money(q.amount)}</b></div>
+          </section>
+
+          <div class="lv-actions" style="margin-top:14px">
+            ${q.saleId
+              ? `<button class="btn btn--outline" data-nav="sale:${q.saleId}">${icon("sales")} Open the invoice</button>`
+              : `<button class="btn btn--primary" data-act="convert-quote" data-id="${q.id}">${icon("check")} Convert to invoice</button>`}
+            <button class="btn btn--outline" data-act="share-quote" data-id="${q.id}">${icon("message")} Send on WhatsApp</button>
+            <div class="lv-pair">
+              <button class="btn btn--ghost" data-act="quote-status" data-id="${q.id}" data-status="sent">Mark sent</button>
+              <button class="btn btn--ghost" data-act="quote-status" data-id="${q.id}" data-status="accepted">Mark accepted</button>
+            </div>
+            <button class="btn btn--danger" data-act="delete-quote" data-id="${q.id}">${icon("trash")} Delete quote</button>
+          </div>
+          ${q.saleId ? `<p class="lv-hintline">Converted to invoice #INV-${(db.sales.find((s) => s.id === q.saleId) || {}).no || "—"}.</p>` : ""}
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function quoteText(q) {
+    const lines = q.lines.map((l) => `${l.name} — ${l.qty} ${l.unit || ""} × ${money(l.rate)} = ${money(l.qty * l.rate)}`).join("\n");
+    return [
+      `*${db.shop.name}*`,
+      db.shop.phone ? `Ph ${db.shop.phone}` : "",
+      "",
+      `Quotation Q-${q.no} · ${new Date(q.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`,
+      `To: ${q.customerName}`,
+      "",
+      lines,
+      "",
+      `*Total: ${money(q.amount)}*`,
+      "This is a quotation, not a bill. Prices valid for 7 days.",
+    ].filter(Boolean).join("\n");
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* payments                                                           */
+  /* ------------------------------------------------------------------ */
+  function viewPayments() {
+    const debtors = db.customers
+      .map((c) => ({ ...c, due: customerDue(c.id) }))
+      .filter((c) => c.due > 0)
+      .sort((a, b) => b.due - a.due);
+    const receipts = db.payments.slice().sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row"><h1 class="t-title1">Payments</h1></div>
+          <p class="shead__sub t-subhead">Money owed to you, and money that has come in. Record a receipt the moment it lands.</p>
+        </div>
+        <div class="sbody">
+          <section class="hero-card" aria-label="Outstanding">
+            <div class="hero-card__head">
+              <div>
+                <div class="hero-card__label">${icon("clock")} Outstanding</div>
+                <div class="hero-card__value num">${money(totalDue())}</div>
+                <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:6px">across ${debtors.length} ${debtors.length === 1 ? "customer" : "customers"}</div>
+              </div>
+              <span class="pill" style="background:rgba(255,255,255,.09);color:rgba(255,255,255,.72)">${db.payments.length} receipts</span>
+            </div>
+          </section>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Who owes you</span></div>
+          <div class="people" style="margin-top:8px">
+            ${debtors.length ? debtors.map((c) => `<button class="lv-row-btn" data-nav="payment:${c.id}">
+                <span class="avatar" aria-hidden="true">${esc(initials(c.name))}</span>
+                <span class="row__body">
+                  <span class="lv-row-title">${esc(c.name)}</span>
+                  <span class="lv-row-sub">${c.phone || "no phone"} · tap to record a payment</span>
+                </span>
+                <span class="row__end"><span class="lv-row-amount">${money(c.due)}</span></span>
+              </button>`).join("") : `<div class="lv-empty">Nothing pending. Every customer is settled.</div>`}
+          </div>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Recent receipts</span></div>
+          <div class="people" style="margin-top:8px">
+            ${receipts.length ? receipts.map((p) => {
+              const c = db.customers.find((x) => x.id === p.customerId) || { name: "Customer" };
+              return `<div class="lv-data-row">
+                <div><b>${esc(c.name)}</b><small>${new Date(p.at || Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${esc(p.method || "Cash")}</small></div>
+                <b class="num" style="color:var(--success)">+${money(p.amount)}</b>
+              </div>`;
+            }).join("") : `<div class="lv-empty">No receipts yet.</div>`}
+          </div>
+        </div>
+      </div>
+      ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewPayment(id) {
+    const c = db.customers.find((x) => x.id === id);
+    if (!c) return viewPayments();
+    const due = customerDue(id);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>${esc(c.name)}</h1>
+        </div>
+        <div class="lv-form">
+          <section class="lv-metric" style="padding:16px;margin-bottom:4px">
+            <span>Outstanding</span>
+            <b style="font-size:26px;margin-top:4px">${money(due)}</b>
+          </section>
+          <div class="lv-field">
+            <span class="lv-label">Amount received</span>
+            <input class="lv-input lv-input--num" id="pay-amount" type="number" inputmode="decimal" placeholder="0" value="${due || ""}" />
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Received as</span>
+            <select class="lv-select" id="pay-method">
+              ${["Cash", "UPI", "Bank transfer", "Cheque"].map((m) => `<option>${m}</option>`).join("")}
+            </select>
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Note (optional)</span>
+            <input class="lv-input" id="pay-note" placeholder="e.g. part payment" />
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="collect" data-id="${id}">${icon("check")} Record payment</button>
+          </div>
+          <p class="lv-hintline">Recording a payment reduces what this customer owes. It never changes a past invoice.</p>
         </div>
       </div>
       ${indicator()}
@@ -1800,6 +2106,14 @@
             <a class="lv-data-row lv-data-row--link" data-nav="profit">
               <div><b>Profit</b><small>What you actually made, after cost and expenses</small></div>
               <span class="pill pill--success">${money(periodStats(1).net)}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="quotes">
+              <div><b>Quotations</b><small>Prices you promised, ready to become bills</small></div>
+              <span class="pill">${db.quotes.length}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="payments">
+              <div><b>Payments &amp; outstanding</b><small>${money(totalDue())} owed to you</small></div>
+              ${icon("chevron-right")}
             </a>
             <a class="lv-data-row lv-data-row--link" data-nav="reports">
               <div><b>Reports</b><small>Sales by day, top products, best customers, udhaar ageing</small></div>
@@ -1881,6 +2195,10 @@
     else if (base === "reports") html = viewReports();
     else if (base === "ask") html = viewAsk();
     else if (base === "settings") html = viewSettings();
+    else if (base === "quotes") html = viewQuotes();
+    else if (base === "quote") html = viewQuote(id);
+    else if (base === "payments") html = viewPayments();
+    else if (base === "payment") html = viewPayment(id);
     else if (base === "sale-new") html = viewNewSale();
     else if (base === "expense") html = viewExpense();
     else if (base === "voice") html = viewVoice();
@@ -1943,9 +2261,21 @@
 
   function updateSaleTotal() {
     const s = readSaleForm();
-    const total = Math.round((Number(s.qty) || 0) * (Number(s.rate) || 0));
+    const cart = Array.isArray(ui.cart) ? ui.cart : [];
+    const base = Math.round(cart.reduce((sum2, l) => sum2 + l.qty * l.rate, 0) + (Number(s.qty) || 0) * (Number(s.rate) || 0));
+    const tax = taxFor(base);
+    const total = tax ? tax.total : base;
     const t = $("#sale-total");
     if (t) t.textContent = money(total);
+    const qtyInput = $("#sale-qty");
+    const qtyLabel = qtyInput && qtyInput.closest(".lv-field") ? qtyInput.closest(".lv-field").querySelector(".lv-label") : null;
+    const picked = db.items.find((i) => i.id === s.itemId);
+    if (qtyLabel && picked) qtyLabel.textContent = `Quantity (${picked.unit})`;
+    const saveBtn = $('[data-act="save-sale"]');
+    if (saveBtn) {
+      const count = cart.length + ((Number(s.qty) || 0) > 0 ? 1 : 0);
+      saveBtn.innerHTML = `${icon("check")} ${count > 1 ? `Save sale · ${count} items` : "Save sale"}`;
+    }
     const item = db.items.find((i) => i.id === s.itemId);
     const hint = $("#sale-stockhint");
     if (hint && item) {
@@ -1955,48 +2285,116 @@
     }
   }
 
+  /* Turns whatever is on the New sale screen into a bill: new customer, new product,
+     the cart, and the line currently being typed. */
+  function resolveBill(s) {
+    let customerId = s.customerId;
+    let customerName = "";
+    if (customerId === "__new") {
+      const name = (s.newCustomer || "").trim();
+      if (!name) throw new Error("Give the new customer a name");
+      const created = { id: uid("c"), name: titleCase(name), phone: "" };
+      db.customers.push(created);
+      customerId = created.id;
+      customerName = created.name;
+    }
+
+    let itemId = s.itemId;
+    if (itemId === "__new") {
+      const name = (s.newItemName || "").trim();
+      if (!name) throw new Error("Name the new product first");
+      const created = {
+        id: uid("it"),
+        name: titleCase(name),
+        unit: s.newItemUnit || "piece",
+        rate: Number(s.rate) || 0,
+        buy: 0,
+        stock: num(s.newItemStock),
+        low: 10,
+      };
+      db.items.push(created);
+      itemId = created.id;
+    } else if (!db.items.some((i) => i.id === itemId)) {
+      itemId = db.items[0] ? db.items[0].id : "";
+    }
+
+    const lines = (Array.isArray(ui.cart) ? ui.cart : []).map((l) => ({ ...l }));
+    const qty = Number(s.qty) || 0;
+    if (qty > 0 && itemId) lines.push({ itemId, qty, rate: Number(s.rate) || 0 });
+    if (!lines.length) throw new Error("Add at least one item to the bill");
+
+    return { customerId, customerName, itemId, lines, method: s.method };
+  }
+
+  const blankSale = () => ({
+    customerId: db.customers[0] ? db.customers[0].id : "",
+    itemId: db.items[0] ? db.items[0].id : "",
+    qty: 1,
+    rate: db.items[0] ? db.items[0].rate : 0,
+    method: "UPI",
+    mode: "sale",
+    newCustomer: "",
+    newItemName: "",
+    newItemUnit: "bag",
+    newItemStock: "",
+  });
+
   function saveSale() {
     const s = readSaleForm();
     try {
-      let customerId = s.customerId;
-      let customerName = "";
-      if (customerId === "__new") {
-        const name = (s.newCustomer || "").trim();
-        if (!name) throw new Error("Give the new customer a name");
-        const created = { id: uid("c"), name: titleCase(name), phone: "" };
-        db.customers.push(created);
-        customerId = created.id;
-        customerName = created.name;
-      }
-      let itemId = s.itemId;
-      if (itemId === "__new") {
-        const name = (s.newItemName || "").trim();
-        if (!name) throw new Error("Name the new product first");
-        const created = {
-          id: uid("it"),
-          name: titleCase(name),
-          unit: s.newItemUnit || "piece",
-          rate: Number(s.rate) || 0,
-          buy: 0,
-          stock: num(s.newItemStock),
-          low: 10,
-        };
-        db.items.push(created);
-        itemId = created.id;
-      }
+      const bill = resolveBill(s);
       const sale = addSale({
-        customerId,
-        customerName,
-        itemId,
-        qty: s.qty,
-        rate: s.rate,
+        customerId: bill.customerId,
+        customerName: bill.customerName,
         method: s.method,
+        lines: bill.lines,
       });
-      ui.sale = { customerId: db.customers[0].id, itemId: db.items[0].id, qty: 1, rate: db.items[0].rate, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" };
+      ui.cart = [];
+      ui.sale = blankSale();
       route(`sale:${sale.id}`);
       toast(`Saved · ${money(sale.amount)} · #INV-${sale.no}`);
     } catch (err) {
       toast(err.message || "Could not save that sale");
+    }
+  }
+
+  function saveQuote() {
+    const s = readSaleForm();
+    try {
+      const bill = resolveBill(s);
+      if (!bill.customerId) throw new Error("Pick a customer for the quotation");
+      const cust = db.customers.find((c) => c.id === bill.customerId) || { name: bill.customerName || "Customer" };
+      const lines = bill.lines.map((l) => {
+        const item = db.items.find((i) => i.id === l.itemId) || {};
+        return {
+          itemId: l.itemId,
+          name: item.name || "Item",
+          unit: item.unit || "piece",
+          qty: Number(l.qty) || 0,
+          rate: Number(l.rate) || Number(item.rate) || 0,
+        };
+      });
+      const amount = Math.round(lines.reduce((t, l) => t + l.qty * l.rate, 0));
+      const quote = {
+        id: uid("q"),
+        no: nextQuoteNo(),
+        at: Date.now(),
+        date: dayKey(),
+        customerId: bill.customerId,
+        customerName: cust.name,
+        lines,
+        amount,
+        status: "open",
+        validTill: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
+      };
+      db.quotes.unshift(quote);
+      persist();
+      ui.cart = [];
+      ui.sale = blankSale();
+      route(`quote:${quote.id}`);
+      toast(`Quotation Q-${quote.no} saved · ${money(amount)}`);
+    } catch (err) {
+      toast(err.message || "Could not save that quotation");
     }
   }
 
@@ -2160,6 +2558,9 @@
         db.shop.gstin = (($("#set-gstin") || {}).value || "").trim();
         const lang = ($("#set-lang") || {}).value;
         if (lang) db.settings.lang = lang;
+        const gstRate = Number((($("#set-gst") || {}).value) || 0);
+        const gstMode = (($("#set-gstmode") || {}).value) || "in";
+        db.settings.gst = { rate: gstRate, inclusive: gstMode !== "ex" };
         persist();
         go("more");
         toast("Shop details saved");
@@ -2195,7 +2596,8 @@
         break;
       case "newsale":
         event.preventDefault();
-        ui.sale = { customerId: db.customers[0].id, itemId: db.items[0].id, qty: 1, rate: db.items[0].rate, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" };
+        ui.sale = blankSale();
+        ui.cart = [];
         go("sale-new");
         break;
       case "expense":
@@ -2236,6 +2638,115 @@
         persist();
         go("sales");
         toast("Sale deleted · stock restored");
+        break;
+      }
+      case "sale-mode": {
+        event.preventDefault();
+        const s = readSaleForm();
+        s.mode = act.getAttribute("data-mode") === "quote" ? "quote" : "sale";
+        ui.sale.mode = s.mode;
+        render();
+        break;
+      }
+      case "new-quote": {
+        event.preventDefault();
+        ui.cart = [];
+        ui.sale = blankSale();
+        ui.sale.mode = "quote";
+        go("sale-new");
+        break;
+      }
+      case "save-quote":
+        event.preventDefault();
+        saveQuote();
+        break;
+      case "share-quote": {
+        event.preventDefault();
+        const q = db.quotes.find((x) => x.id === id);
+        if (q) window.open("https://wa.me/?text=" + encodeURIComponent(quoteText(q)), "_blank", "noopener");
+        break;
+      }
+      case "quote-status": {
+        event.preventDefault();
+        const q = db.quotes.find((x) => x.id === id);
+        if (!q) break;
+        q.status = act.getAttribute("data-status") || "open";
+        persist();
+        render();
+        toast(`Marked ${q.status}`);
+        break;
+      }
+      case "convert-quote": {
+        event.preventDefault();
+        const q = db.quotes.find((x) => x.id === id);
+        if (!q) break;
+        try {
+          const sale = addSale({
+            customerId: q.customerId,
+            customerName: q.customerName,
+            method: "Udhaar",
+            lines: q.lines.map((l) => ({ itemId: l.itemId, qty: l.qty, rate: l.rate })),
+          });
+          q.status = "accepted";
+          q.saleId = sale.id;
+          persist();
+          route(`sale:${sale.id}`);
+          toast(`Converted · #INV-${sale.no} is now an unpaid invoice`);
+        } catch (err) {
+          toast(err.message || "Could not convert that quotation");
+        }
+        break;
+      }
+      case "delete-quote": {
+        event.preventDefault();
+        const q = db.quotes.find((x) => x.id === id);
+        if (!q) break;
+        if (!window.confirm(`Delete quotation Q-${q.no}?`)) break;
+        db.quotes = db.quotes.filter((x) => x.id !== id);
+        persist();
+        go("quotes");
+        toast("Quotation deleted");
+        break;
+      }
+      case "add-line": {
+        event.preventDefault();
+        const s = readSaleForm();
+        let itemId = s.itemId;
+        if (itemId === "__new") {
+          const name = (s.newItemName || "").trim();
+          if (!name) { toast("Name the new product first"); break; }
+          const created = {
+            id: uid("it"),
+            name: titleCase(name),
+            unit: s.newItemUnit || "piece",
+            rate: Number(s.rate) || 0,
+            buy: 0,
+            stock: num(s.newItemStock),
+            low: 10,
+          };
+          db.items.push(created);
+          itemId = created.id;
+          persist();
+        }
+        const item = db.items.find((i) => i.id === itemId);
+        const qty = Number(s.qty) || 0;
+        if (!item || qty <= 0) { toast("Enter a quantity first"); break; }
+        if (!Array.isArray(ui.cart)) ui.cart = [];
+        ui.cart.push({ itemId: item.id, name: item.name, unit: item.unit, qty, rate: Number(s.rate) || item.rate });
+        ui.sale.qty = 0;
+        ui.sale.rate = item.rate;
+        ui.sale.itemId = item.id;
+        ui.sale.newItemName = "";
+        ui.sale.newItemStock = "";
+        render();
+        toast(`${item.name} added to the bill`);
+        break;
+      }
+      case "rm-line": {
+        event.preventDefault();
+        const idx = Number(act.getAttribute("data-idx"));
+        if (Array.isArray(ui.cart) && idx >= 0) ui.cart.splice(idx, 1);
+        render();
         break;
       }
       case "new-item":
@@ -2324,9 +2835,19 @@
         const amount = num(($("#pay-amount") || {}).value);
         const due = customerDue(id);
         if (amount <= 0) { toast("Enter the amount received"); break; }
-        db.payments.push({ id: uid("p"), customerId: id, amount: Math.min(amount, due || amount), date: dayKey(), at: Date.now() });
+        const method = (($("#pay-method") || {}).value) || "Cash";
+        const note = (($("#pay-note") || {}).value) || "";
+        db.payments.push({
+          id: uid("p"),
+          customerId: id,
+          amount: Math.min(amount, due || amount),
+          method,
+          note,
+          date: dayKey(),
+          at: Date.now(),
+        });
         persist();
-        go("customers");
+        go("payments");
         toast(`Payment recorded · ${money(amount)}`);
         break;
       }
