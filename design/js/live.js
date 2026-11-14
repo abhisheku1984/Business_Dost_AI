@@ -241,7 +241,11 @@
   ];
 
   function titleCase(s) {
-    return s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+    /* “cement OPC 53” → “Cement OPC 53”: capitalise, but never break someone's capitals */
+    return String(s || "").trim().replace(/\S+/g, (w) => {
+      if (/[A-Z]/.test(w.slice(1))) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    });
   }
 
   function parse(text) {
@@ -379,7 +383,7 @@
   const ui = {
     route: "home",
     voice: { live: false, heard: "", interim: "", typing: false, error: "" },
-    sale: { customerId: db.customers[0] ? db.customers[0].id : "", itemId: db.items[0] ? db.items[0].id : "", qty: 1, rate: db.items[0] ? db.items[0].rate : 0, method: "UPI", newCustomer: "" },
+    sale: { customerId: db.customers[0] ? db.customers[0].id : "", itemId: db.items[0] ? db.items[0].id : "", qty: 1, rate: db.items[0] ? db.items[0].rate : 0, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" },
   };
 
   let toastTimer = 0;
@@ -745,7 +749,8 @@
           <p class="shead__sub t-subhead">Udhaar is calculated from unpaid invoices — nothing typed twice.</p>
         </div>
         <div class="sbody">
-          <div class="people">${rows || `<div class="lv-empty">No customers yet.</div>`}</div>
+          <button class="btn btn--primary btn--block" data-act="new-customer">${icon("plus")} Add a customer</button>
+          <div class="people" style="margin-top:12px">${rows || `<div class="lv-empty">No customers yet.</div>`}</div>
         </div>
       </div>
       ${tabbar("customers")}
@@ -814,9 +819,94 @@
           </div>
           <p class="shead__sub t-subhead">Every sale takes stock off automatically. Tap an item to add a delivery.</p>
         </div>
-        <div class="sbody"><div class="people">${rows}</div></div>
+        <div class="sbody">
+          <button class="btn btn--primary btn--block" data-act="new-item">${icon("plus")} Add a product</button>
+          <p class="lv-hintline" style="margin:8px 0 14px">Anything you sell — cement, paint, a service. It appears in New sale straight away.</p>
+          <div class="people">${rows}</div>
+        </div>
       </div>
       ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  const UNITS = ["bag", "kg", "piece", "bucket", "coil", "box", "litre", "metre", "packet", "hour"];
+
+  function viewItemForm(id) {
+    const editing = Boolean(id);
+    const item = editing ? db.items.find((i) => i.id === id) : null;
+    if (editing && !item) return viewStock();
+    const v = item || { name: "", unit: "bag", rate: "", stock: "", low: 10 };
+    const used = editing ? db.sales.some((sale) => sale.lines.some((l) => l.itemId === item.id)) : false;
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>${editing ? "Edit product" : "New product"}</h1>
+        </div>
+        <div class="lv-form">
+          <div class="lv-field">
+            <span class="lv-label">Product name</span>
+            <input class="lv-input" id="item-name" placeholder="e.g. Cement OPC 53" value="${esc(v.name)}" />
+          </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">Unit</span>
+              <select class="lv-select" id="item-unit">
+                ${UNITS.map((u) => `<option ${u === v.unit ? "selected" : ""}>${u}</option>`).join("")}
+              </select>
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Selling rate</span>
+              <input class="lv-input lv-input--num" id="item-rate" type="number" inputmode="decimal" min="0" placeholder="0" value="${v.rate}" />
+            </div>
+          </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">${editing ? "In stock" : "Opening stock"}</span>
+              <input class="lv-input lv-input--num" id="item-stock" type="number" inputmode="decimal" min="0" value="${v.stock}" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Alert below</span>
+              <input class="lv-input lv-input--num" id="item-low" type="number" inputmode="decimal" min="0" value="${v.low}" />
+            </div>
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="save-item" data-id="${editing ? item.id : ""}">${icon("check")} ${editing ? "Save changes" : "Add product"}</button>
+          </div>
+          ${editing && !used ? `<button class="btn btn--ghost" data-act="delete-item" data-id="${item.id}">${icon("trash")} Delete this product</button>` : ""}
+          ${editing && used ? `<p class="lv-hintline">This product is on invoices, so it can't be deleted — set the alert low and stop selling it instead.</p>` : ""}
+          <p class="lv-hintline">Changes apply to new sales only. Past invoices keep the price they were sold at.</p>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewCustomerForm() {
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>New customer</h1>
+        </div>
+        <div class="lv-form">
+          <div class="lv-field">
+            <span class="lv-label">Name</span>
+            <input class="lv-input" id="cust-name" placeholder="e.g. Ramesh Kumar" />
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Phone (optional)</span>
+            <input class="lv-input" id="cust-phone" type="tel" inputmode="tel" placeholder="98200 11223" />
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="save-customer">${icon("check")} Add customer</button>
+          </div>
+          <p class="lv-hintline">You can also create one on the fly from New sale.</p>
+        </div>
+      </div>
       ${indicator()}
     </div>`;
   }
@@ -883,8 +973,25 @@
             <span class="lv-label">Item</span>
             <select class="lv-select" id="sale-item">
               ${db.items.map((i) => `<option value="${i.id}" ${i.id === s.itemId ? "selected" : ""}>${esc(i.name)} — ${money(i.rate)}/${i.unit} · ${i.stock} left</option>`).join("")}
+              <option value="__new" ${s.itemId === "__new" ? "selected" : ""}>＋ New product…</option>
             </select>
           </div>
+          ${s.itemId === "__new" ? `<div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">Product</span>
+              <input class="lv-input" id="sale-newitem-name" placeholder="Name" value="${esc(s.newItemName || "")}" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Unit</span>
+              <select class="lv-select" id="sale-newitem-unit">
+                ${UNITS.map((u) => `<option ${u === (s.newItemUnit || "bag") ? "selected" : ""}>${u}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Opening stock</span>
+            <input class="lv-input lv-input--num" id="sale-newitem-stock" type="number" inputmode="decimal" min="0" placeholder="0" value="${s.newItemStock == null ? "" : s.newItemStock}" />
+          </div>` : ""}
           <div class="lv-pair">
             <div class="lv-field">
               <span class="lv-label">Quantity (${item.unit})</span>
@@ -1135,6 +1242,9 @@
     else if (base === "customer") html = viewCustomer(id);
     else if (base === "stock") html = viewStock();
     else if (base === "restock") html = viewRestock(id);
+    else if (base === "item-new") html = viewItemForm(null);
+    else if (base === "item-edit") html = viewItemForm(id);
+    else if (base === "customer-new") html = viewCustomerForm();
     else if (base === "sale-new") html = viewNewSale();
     else if (base === "expense") html = viewExpense();
     else if (base === "voice") html = viewVoice();
@@ -1182,6 +1292,12 @@
     if (q) s.qty = Number(q.value) || 0;
     if (r) s.rate = Number(r.value) || 0;
     if (nc) s.newCustomer = nc.value;
+    const ni = $("#sale-newitem-name");
+    const nu = $("#sale-newitem-unit");
+    const ns = $("#sale-newitem-stock");
+    if (ni) s.newItemName = ni.value;
+    if (nu) s.newItemUnit = nu.value;
+    if (ns) s.newItemStock = ns.value;
     return s;
   }
 
@@ -1212,15 +1328,30 @@
         customerId = created.id;
         customerName = created.name;
       }
+      let itemId = s.itemId;
+      if (itemId === "__new") {
+        const name = (s.newItemName || "").trim();
+        if (!name) throw new Error("Name the new product first");
+        const created = {
+          id: uid("it"),
+          name: titleCase(name),
+          unit: s.newItemUnit || "piece",
+          rate: Number(s.rate) || 0,
+          stock: num(s.newItemStock),
+          low: 10,
+        };
+        db.items.push(created);
+        itemId = created.id;
+      }
       const sale = addSale({
         customerId,
         customerName,
-        itemId: s.itemId,
+        itemId,
         qty: s.qty,
         rate: s.rate,
         method: s.method,
       });
-      ui.sale = { customerId: db.customers[0].id, itemId: db.items[0].id, qty: 1, rate: db.items[0].rate, method: "UPI", newCustomer: "" };
+      ui.sale = { customerId: db.customers[0].id, itemId: db.items[0].id, qty: 1, rate: db.items[0].rate, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" };
       route(`sale:${sale.id}`);
       toast(`Saved · ${money(sale.amount)} · #INV-${sale.no}`);
     } catch (err) {
@@ -1347,7 +1478,7 @@
         break;
       case "newsale":
         event.preventDefault();
-        ui.sale = { customerId: db.customers[0].id, itemId: db.items[0].id, qty: 1, rate: db.items[0].rate, method: "UPI", newCustomer: "" };
+        ui.sale = { customerId: db.customers[0].id, itemId: db.items[0].id, qty: 1, rate: db.items[0].rate, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" };
         go("sale-new");
         break;
       case "expense":
@@ -1388,6 +1519,70 @@
         persist();
         go("sales");
         toast("Sale deleted · stock restored");
+        break;
+      }
+      case "new-item":
+        event.preventDefault();
+        go("item-new");
+        break;
+      case "new-customer":
+        event.preventDefault();
+        go("customer-new");
+        break;
+      case "save-item": {
+        event.preventDefault();
+        const name = (($("#item-name") || {}).value || "").trim();
+        const unit = (($("#item-unit") || {}).value) || "piece";
+        const rate = num(($("#item-rate") || {}).value);
+        const stock = num(($("#item-stock") || {}).value);
+        const low = num(($("#item-low") || {}).value);
+        if (!name) { toast("Give the product a name"); break; }
+        if (id) {
+          const item = db.items.find((i) => i.id === id);
+          if (!item) break;
+          item.name = titleCase(name);
+          item.unit = unit;
+          item.rate = rate || item.rate;
+          item.stock = stock;
+          item.low = low;
+          persist();
+          go("stock");
+          toast(`${item.name} updated`);
+        } else {
+          const item = { id: uid("it"), name: titleCase(name), unit, rate, stock, low: low || 10 };
+          db.items.push(item);
+          persist();
+          go("stock");
+          toast(`${item.name} added to your catalogue`);
+        }
+        break;
+      }
+      case "delete-item": {
+        event.preventDefault();
+        const item = db.items.find((i) => i.id === id);
+        if (!item) break;
+        const used = db.sales.some((sale) => sale.lines.some((l) => l.itemId === id));
+        if (used) { toast("That product is on invoices — it can't be deleted."); break; }
+        if (!window.confirm(`Remove ${item.name} from your catalogue?`)) break;
+        db.items = db.items.filter((i) => i.id !== id);
+        if (ui.sale.itemId === id) ui.sale.itemId = db.items[0] ? db.items[0].id : "";
+        persist();
+        go("stock");
+        toast(`${item.name} removed`);
+        break;
+      }
+      case "save-customer": {
+        event.preventDefault();
+        const name = (($("#cust-name") || {}).value || "").trim();
+        const phone = (($("#cust-phone") || {}).value || "").trim();
+        if (!name) { toast("Give the customer a name"); break; }
+        const exists = db.customers.find((c) => c.name.toLowerCase() === name.toLowerCase());
+        if (exists) { toast(`${exists.name} is already in your list`); break; }
+        const created = { id: uid("c"), name: titleCase(name), phone };
+        db.customers.push(created);
+        persist();
+        go("customers");
+        toast(`${created.name} added`);
         break;
       }
       case "restock-save": {
@@ -1483,8 +1678,8 @@
   function homeFor(r) {
     const base = r.split(":")[0];
     return ["sales", "sale"].includes(base) ? "sales"
-      : ["customers", "customer"].includes(base) ? "customers"
-      : ["stock", "restock"].includes(base) ? "stock"
+      : ["customers", "customer", "customer-new"].includes(base) ? "customers"
+      : ["stock", "restock", "item-new", "item-edit"].includes(base) ? "stock"
       : "home";
   }
 
@@ -1505,6 +1700,11 @@
     const t = event.target;
     if (!(t instanceof HTMLElement)) return;
     if (t.id === "sale-item") {
+      if (t.value === "__new") {
+        ui.sale.itemId = "__new";
+        render();
+        return;
+      }
       const item = db.items.find((i) => i.id === t.value);
       if (item) {
         ui.sale.itemId = item.id;

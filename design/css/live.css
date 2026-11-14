@@ -316,3 +316,5 @@
   font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
 }
 .lr-sum b { font-size: 20px; letter-spacing: -0.02em; color: var(--ink); text-transform: none; }
+
+.btn--block { width: 100%; justify-content: center; }
