@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Business Dost AI — Design System & Screens</title>
+<meta name="description" content="High-fidelity design system and screen mockups for Business Dost AI — a premium, voice-first companion for small businesses." />
+<meta name="theme-color" content="#f4f4f6" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#08080a" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12.5' fill='%230b0b0e'/%3E%3Ccircle cx='20' cy='20' r='9.2' fill='none' stroke='%2335d6a9' stroke-width='2.6' stroke-linecap='round' stroke-dasharray='42 15.8' transform='rotate(4 20 20)'/%3E%3Ccircle cx='26.5' cy='13.5' r='2.6' fill='%2354b4f2'/%3E%3C/svg%3E" />
+<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/screens.css" />
+<link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+
+<!-- ================= SVG sprite ================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="g-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#35d6a9"/>
+      <stop offset=".55" stop-color="#54b4f2"/>
+      <stop offset="1" stop-color="#9c8df2"/>
+    </linearGradient>
+  </defs>
+  <symbol id="logo" viewBox="0 0 40 40">
+    <rect width="40" height="40" rx="12.5" fill="currentColor"/>
+    <path d="M14.6 11.2h5.9a8.8 8.8 0 0 1 0 17.6h-5.9z" fill="none" stroke="url(#g-mark)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="22.6" cy="20" r="2.15" fill="url(#g-mark)"/>
+  </symbol>
+
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.6 12 3.5l8.5 7.1V20a.9.9 0 0 1-.9.9h-4.9v-6.1H9.3v6.1H4.4a.9.9 0 0 1-.9-.9z"/></symbol>
+  <symbol id="i-sales" viewBox="0 0 24 24"><path d="M6 3.2h12v17.6l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6z"/><path d="M9 8h6M9 11.6h6M9 15.2h3.5"/></symbol>
+  <symbol id="i-ai" viewBox="0 0 24 24"><path d="M11 3.4 12.8 8.6 18 10.4l-5.2 1.8L11 17.4 9.2 12.2 4 10.4l5.2-1.8z"/><path d="m18.4 15.4.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 3.4 12.8 8.6 18 10.4l-5.2 1.8L11 17.4 9.2 12.2 4 10.4l5.2-1.8z"/><path d="m18.4 15.4.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9.3" cy="8" r="3.6"/><path d="M2.8 20.2v-1.3a4.6 4.6 0 0 1 4.6-4.6h3.8a4.6 4.6 0 0 1 4.6 4.6v1.3"/><path d="M16.1 4.6a3.6 3.6 0 0 1 0 6.9"/><path d="M21.2 20.2v-1.3a4.6 4.6 0 0 0-3.4-4.4"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2.2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18.2 8.4a6.2 6.2 0 1 0-12.4 0c0 5.2-2.1 6.3-2.1 6.3h16.6s-2.1-1.1-2.1-6.3z"/><path d="M10.3 20.1a2 2 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.6"/><path d="M20.4 20.4 16.2 16.2"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12 15 18.5"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m5.5 9 6.5 6.5L18.5 9"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.6 4.6 4.6L19 7.4"/></symbol>
+  <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17.2 6.8M8.2 6.8h9v9"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4.8v14.4M5.8 13l6.2 6.2L18.2 13"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7.2 3.6h2.9l1.3 4-2 1.4a11.5 11.5 0 0 0 5.6 5.6l1.4-2 4 1.3v2.9a2.4 2.4 0 0 1-2.6 2.4C10.5 18.4 5.6 13.5 4.8 6.2A2.4 2.4 0 0 1 7.2 3.6z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.2 19 6v5.4c0 4.6-3 7.8-7 9.4-4-1.6-7-4.8-7-9.4V6z"/><path d="m9 11.8 2 2 4-4"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5"/><path d="M4 12h16"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.6 8.3h2.8l1.4-1.9h6.4l1.4 1.9h2.8a1 1 0 0 1 1 1v9.2a1 1 0 0 1-1 1H4.6a1 1 0 0 1-1-1V9.3a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.4" r="3.3"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3.4 8.2a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v9.6a2 2 0 0 1-2 2H5.4a2 2 0 0 1-2-2z"/><path d="M3.4 9.2h17.2"/><path d="M16.2 13.6h2.4"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.8" y="5.2" width="18.4" height="13.6" rx="3"/><path d="M2.8 9.8h18.4"/><path d="M6.4 15h3.2"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3.4 8.4 4.4v8.4L12 20.6 3.6 16.2V7.8z"/><path d="M3.9 8 12 12.3 20.1 8M12 12.3v8.1"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5.4 8.2h13.2l1 11.2a1.4 1.4 0 0 1-1.4 1.5H5.8a1.4 1.4 0 0 1-1.4-1.5z"/><path d="M8.8 8.2V6.8a3.2 3.2 0 0 1 6.4 0v1.4"/></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><path d="M2.8 6.8h10.6v9.4H2.8z"/><path d="M13.4 10.2h3.4l3.4 3.2v2.8h-6.8"/><circle cx="7" cy="18.2" r="1.8"/><circle cx="17" cy="18.2" r="1.8"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3.4 20.4h17.2"/><path d="M6.6 20.4v-6.2M12 20.4V5.4M17.4 20.4v-9.4"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M4.4 9.2 6 4.2h12l1.6 5"/><path d="M3.6 9.2h16.8v10.4a1 1 0 0 1-1 1H4.6a1 1 0 0 1-1-1z"/><path d="M9.4 20.6v-5.4h5.2v5.4"/><path d="M3.6 9.2a2.1 2.1 0 0 0 4.2 0 2.1 2.1 0 0 0 4.2 0 2.1 2.1 0 0 0 4.2 0 2.1 2.1 0 0 0 4.2 0"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6.4h16M7 12h10M10 17.6h4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4.2v10.2M8.2 10.8 12 14.6l3.8-3.8"/><path d="M4.8 20.2h14.4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3.6 4.8v4.6h4.6"/><path d="M4.4 9.2A8.2 8.2 0 1 1 3.8 12"/><path d="M12 8.2v4.4l3 1.8"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.8"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M9.4 6.6 18 12l-8.6 5.4z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9.2 6.2v11.6M14.8 6.2v11.6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9.2" y="3" width="5.6" height="10.6" rx="2.8"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0M12 17.6v3.4"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.8" y="6.2" width="18.4" height="11.6" rx="2.6"/><path d="M6.4 10h.01M9.6 10h.01M12.8 10h.01M16 10h.01M6.4 13.4h.01M9.6 13.4h.01M12.8 13.4h.01M16 13.4h.01M8.2 16.2h7.6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4c2.4 2.3 3.6 5.2 3.6 8.6s-1.2 6.3-3.6 8.6c-2.4-2.3-3.6-5.2-3.6-8.6S9.6 5.7 12 3.4z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.4 14.6A8.6 8.6 0 0 1 9.4 3.6a8.6 8.6 0 1 0 11 11z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M18.5 5.5l-1.4 1.4M6.9 17.1l-1.4 1.4"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7.2h9.4M17.8 7.2h2.2M4 16.8h3.8M12.2 16.8h7.8"/><circle cx="15.6" cy="7.2" r="2.2"/><circle cx="10" cy="16.8" r="2.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.4" y="10" width="15.2" height="10.6" rx="3"/><path d="M8 10V7.4a4 4 0 0 1 8 0V10"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.9.5-1.2 1-1.2 1.9v.4"/><path d="M12 17.4h.01"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14.8 4.6h3.6a1 1 0 0 1 1 1v12.8a1 1 0 0 1-1 1h-3.6"/><path d="M9.6 15.8 5.8 12l3.8-3.8M5.8 12h9.6"/></symbol>
+  <symbol id="i-trending-up" viewBox="0 0 24 24"><path d="M3.4 17 9 11.4l3.6 3.6 7.4-7.4"/><path d="M15 7.6h6v6"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.4" y="5" width="17.2" height="15.4" rx="3"/><path d="M8 3.2v3.6M16 3.2v3.6M3.4 10h17.2"/></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9.6" cy="8" r="3.4"/><path d="M3.4 20v-1.2a4.4 4.4 0 0 1 4.4-4.4h3.6a4.4 4.4 0 0 1 4.4 4.4V20"/><path d="M19 8.4v5.2M16.4 11h5.2"/></symbol>
+  <symbol id="i-rupee" viewBox="0 0 24 24"><path d="M7 4.2h10M7 8.2h10M15.8 4.2c0 4.2-3.2 6.4-7.2 6.4H7l9 9.2"/></symbol>
+  <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M4 5.4v13.2M6.6 5.4v13.2M9.6 5.4v13.2M12 5.4v13.2M15.4 5.4v13.2M18.2 5.4v13.2M20.4 5.4v13.2"/></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7.6" cy="7.6" r="2.6"/><circle cx="16.4" cy="16.4" r="2.6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.2 19.8h4L19.4 8.6a2 2 0 0 0-2.8-2.8L5.4 17z"/><path d="M14.6 7.8 17.8 11"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.4 7h15.2M9.4 7V4.4h5.2V7"/><path d="M6.6 7l.9 12.4a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9L17.4 7"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.4 18.6h9.8a3.8 3.8 0 0 0 .4-7.6 5.4 5.4 0 0 0-10.4 1.2 3.4 3.4 0 0 0 .2 6.4z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.8 21 20H3z"/><path d="M12 9.6v4.2"/><path d="M12 17.1h.01"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.2" width="18" height="12.6" rx="2.4"/><path d="M9 20.2h6M12 16.8v3.4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11v5.4"/><path d="M12 7.8h.01"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m8.2 12.4 2.7 2.7 4.9-5.3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20.2 4.2v5h-5"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M20.6 11.6a8.2 8.2 0 0 1-11.9 7.3L4 20.2l1.4-4.5a8.2 8.2 0 1 1 15.2-4.1z"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.4 12.8 12.6 20.6 3.6 11.6V3.6h8z"/><circle cx="8" cy="8" r="1.3"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.8" r="3.8"/><path d="m11 13 9-9M16.4 3.6 20.4 7.6M14 6l4 4"/></symbol>
+</svg>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div class="shell">
+  <!-- ================= Sidebar ================= -->
+  <aside class="rail" aria-label="Design review navigation">
+    <div class="rail__brand">
+      <svg class="rail__mark" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg>
+      <div class="rail__name">Business Dost AI<small>Design review · v1.0</small></div>
+    </div>
+    <nav class="rail__nav">
+      <a class="navlink" href="#overview"><span class="navlink__num">01</span>Overview</a>
+      <a class="navlink" href="#foundations"><span class="navlink__num">02</span>Foundations</a>
+      <a class="navlink" href="#components"><span class="navlink__num">03</span>Components</a>
+      <a class="navlink" href="#screens"><span class="navlink__num">04</span>Screens</a>
+      <a class="navlink" href="#assistant"><span class="navlink__num">05</span>AI assistant</a>
+      <a class="navlink" href="#motion"><span class="navlink__num">06</span>Motion</a>
+      <a class="navlink" href="#accessibility"><span class="navlink__num">07</span>Accessibility</a>
+      <a class="navlink" href="#handoff"><span class="navlink__num">08</span>Handoff</a>
+    </nav>
+    <div class="rail__foot">
+      <div class="rail__theme" role="group" aria-label="Colour theme">
+        <button type="button" data-theme-set="light" aria-pressed="true" aria-label="Light theme"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
+        <button type="button" data-theme-set="dark" aria-pressed="false" aria-label="Dark theme"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
+      </div>
+      <p class="rail__meta">16 screens · 2 themes<br/>Mockups are code, not pictures.</p>
+    </div>
+  </aside>
+
+  <!-- ================= Mobile nav ================= -->
+  <div class="mobile-nav">
+    <div class="mobile-nav__top">
+      <div class="mobile-nav__brand">
+        <svg class="rail__mark" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg>
+        Business Dost AI
+      </div>
+      <div class="rail__theme" style="width:132px" role="group" aria-label="Colour theme">
+        <button type="button" data-theme-set="light" aria-pressed="true" aria-label="Light theme"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg></button>
+        <button type="button" data-theme-set="dark" aria-pressed="false" aria-label="Dark theme"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      </div>
+    </div>
+    <div class="mobile-nav__scroll">
+      <a class="navlink" href="#overview"><span class="navlink__num">01</span>Overview</a>
+      <a class="navlink" href="#foundations"><span class="navlink__num">02</span>Foundations</a>
+      <a class="navlink" href="#components"><span class="navlink__num">03</span>Components</a>
+      <a class="navlink" href="#screens"><span class="navlink__num">04</span>Screens</a>
+      <a class="navlink" href="#assistant"><span class="navlink__num">05</span>AI</a>
+      <a class="navlink" href="#motion"><span class="navlink__num">06</span>Motion</a>
+      <a class="navlink" href="#accessibility"><span class="navlink__num">07</span>Accessibility</a>
+      <a class="navlink" href="#handoff"><span class="navlink__num">08</span>Handoff</a>
+    </div>
+  </div>
+
+  <main class="main" id="main">
+    <div class="wrap">
+
+      <!-- ================= 01 Hero ================= -->
+      <section class="hero" id="overview">
+        <div class="hero__copy">
+          <span class="hero__badge"><i></i>Design review · November 2026</span>
+          <h1>Your business,<br/><span>beautifully clear.</span></h1>
+          <p class="hero__tag">A voice-first companion for India's small businesses. One calm design system, sixteen production-ready screens, light and dark — built to feel premium on a ₹12,000 phone.</p>
+          <div class="hero__meta">
+            <div><b>16</b><span>Screens</span></div>
+            <div><b>2</b><span>Themes</span></div>
+            <div><b>40+</b><span>Components</span></div>
+            <div><b>AA</b><span>Contrast</span></div>
+          </div>
+          <div class="hero__cta">
+            <a class="btn btn--primary btn--lg" href="#screens">Explore the screens <svg class="i" aria-hidden="true"><use href="#i-arrow-down"/></svg></a>
+            <a class="btn btn--outline btn--lg" href="#foundations">Design foundations</a>
+          </div>
+        </div>
+        <div class="hero__stage" aria-hidden="true" inert>
+          <div class="hero__aurora"></div>
+          <div class="hero__grid"></div>
+          <div class="hero__device device-slot" id="hero-phone"></div>
+      </div>
+      </section>
+
+      <section class="sec sec--first" style="border-top:0;padding-top:0">
+        <div class="sec-head">
+          <span class="eyebrow"><b>01</b>Point of view</span>
+          <h2>Premium does not mean complicated.</h2>
+          <p class="sec__lead">Business Dost AI is used between customers, in a busy shop, often one-handed. Every decision below removes a step, a question or a doubt — while still feeling considered and expensive.</p>
+        </div>
+        <div class="principles">
+          <article class="principle">
+            <span class="principle__icon"><svg class="i" aria-hidden="true"><use href="#i-sparkles"/></svg></span>
+            <h4>Calm by default</h4>
+            <p>One accent colour, generous space and no decoration that competes with the numbers. The interface never shouts.</p>
+          </article>
+          <article class="principle">
+            <span class="principle__icon"><svg class="i" aria-hidden="true"><use href="#i-chart"/></svg></span>
+            <h4>Clarity over density</h4>
+            <p>Each screen answers one question. Depth lives one tap away, never crammed onto the first view.</p>
+          </article>
+          <article class="principle">
+            <span class="principle__icon"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg></span>
+            <h4>Built for real shops</h4>
+            <p>Udhaar, UPI, GST and Hinglish are first-class citizens, not settings buried in an international template.</p>
+          </article>
+          <article class="principle">
+            <span class="principle__icon"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span>
+            <h4>Voice is a primary input</h4>
+            <p>Speaking is faster than typing in a busy shop. Voice mode gets its own calm surface, not a modal afterthought.</p>
+          </article>
+          <article class="principle">
+            <span class="principle__icon"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg></span>
+            <h4>Trust is visible</h4>
+            <p>Dost drafts, the owner decides. Confidence, reasoning and consequences are always shown before anything saves.</p>
+          </article>
+          <article class="principle">
+            <span class="principle__icon"><svg class="i" aria-hidden="true"><use href="#i-trending-up"/></svg></span>
+            <h4>Light on the device</h4>
+            <p>No heavy blur stacks, no hero video, 60 fps transitions. The premium feel comes from type, space and rhythm.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= 02 Foundations ================= -->
+      <section class="sec" id="foundations">
+        <div class="sec-head">
+          <span class="eyebrow"><b>02</b>Foundations</span>
+          <h2>One system, quietly holding everything together.</h2>
+          <p class="sec__lead">Tokens are the contract. Colour, type, space, radius, elevation and icons are defined once and mirrored in <code style="font-size:13px">tokens.json</code> for implementation.</p>
+        </div>
+
+        <!-- Brand -->
+        <div class="sub-head">
+          <div>
+            <h3>Brand & mark</h3>
+            <p>A D for Dost, holding a spark of intelligence. Geometric, friendly and impossible to confuse with a bank or billing app.</p>
+          </div>
+          <span class="sub-head__meta">Clear space = ½ tile width</span>
+        </div>
+        <div class="brand-grid">
+          <div class="brand-tile brand-tile--ink">
+            <span class="brand-tile__label">Primary lockup · on ink</span>
+            <div class="brand-tile__rings"></div>
+            <div class="brand-tile__center">
+              <div class="brand-lockup">
+                <svg class="mark" viewBox="0 0 40 40" aria-hidden="true" style="color:#101815"><use href="#logo"/></svg>
+                <div class="wm">Business Dost <i>AI</i><small>Your business, your dost</small></div>
+              </div>
+            </div>
+            <p class="brand-note">Use on ink, deep photography or the aurora gradient. Never stretch, outline or rotate the mark.</p>
+          </div>
+          <div class="brand-tile">
+            <span class="brand-tile__label">Mark on light</span>
+            <div class="brand-tile__center">
+              <svg style="width:76px;height:76px;color:var(--ink)" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg>
+            </div>
+            <p class="brand-note">The tile may invert, but the D keeps its aurora gradient — the only place blue and violet appear in the product.</p>
+          </div>
+          <div class="brand-tile">
+            <span class="brand-tile__label">Signature palette</span>
+            <div class="brand-tile__center" style="align-items:flex-start;">
+              <div class="wordmark-large">Dost <i>AI</i></div>
+              <div class="brand-swatches" style="margin-top:18px">
+                <span style="background:#0b0b0e"></span>
+                <span style="background:#0a6a56"></span>
+                <span style="background:#35d6a9"></span>
+                <span style="background:#f4f4f6"></span>
+              </div>
+            </div>
+            <p class="brand-note">Ink, evergreen, mint, soft grey. Everything else is a tint of these four.</p>
+          </div>
+        </div>
+
+        <!-- Colour -->
+        <div class="sub-head">
+          <div>
+            <h3>Colour</h3>
+            <p>An evergreen core for trust, mint for action and a single aurora gradient reserved for AI. Semantic colours are used only for meaning.</p>
+          </div>
+          <span class="sub-head__meta">Light & dark · WCAG AA verified</span>
+        </div>
+        <div class="color-callout">
+          <div class="color-callout__text">
+            <h4>Never mix meaning with decoration.</h4>
+            <p>If it is not money, status or AI, it stays neutral. That restraint is what makes the accent feel expensive.</p>
+          </div>
+          <div class="color-callout__hex"><b>#0A6A56</b>EVERGREEN · PRIMARY</div>
+        </div>
+        <div id="swatches"></div>
+
+        <!-- Type -->
+        <div class="sub-head">
+          <div>
+            <h3>Typography</h3>
+            <p>Inter Variable for a neutral, engineered voice; Noto Sans Devanagari for Hindi. Numerals are always tabular so columns of rupees align.</p>
+          </div>
+          <span class="sub-head__meta">8 roles · 3 weights used</span>
+        </div>
+        <div class="type-spec">
+          <div class="type-row">
+            <div class="type-row__meta"><b>Display</b><span>34 / 38 · 700 · −3.5%</span></div>
+            <div class="type-row__sample type-sample-display">₹1,92,400</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Title 1</b><span>28 / 32 · 700 · −3%</span></div>
+            <div class="type-row__sample type-sample-title1">Namaste, Aarav</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Title 2</b><span>22 / 28 · 650 · −2%</span></div>
+            <div class="type-row__sample type-sample-title2">Needs your approval</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Headline</b><span>17 / 24 · 600 · −1.2%</span></div>
+            <div class="type-row__sample type-sample-headline">Dost drafted a sale for Ramesh Kumar</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Body</b><span>15 / 22 · 450 · −0.6%</span></div>
+            <div class="type-row__sample type-sample-body">Everything your shop needs, in one calm place.</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Subhead</b><span>13 / 18 · 500</span></div>
+            <div class="type-row__sample type-sample-subhead">248 people · ₹46,200 to collect</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Caption</b><span>11 / 14 · 550 · +1.2%</span></div>
+            <div class="type-row__sample type-sample-caption">12 BAGS CEMENT · UPI · TODAY, 4:12 PM</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Eyebrow / label</b><span>10 / 13 · 650 · +10%</span></div>
+            <div class="type-row__sample type-sample-eyebrow">AI draft · Sales invoice</div>
+          </div>
+          <div class="type-row">
+            <div class="type-row__meta"><b>Metric</b><span>tabular-nums · any size</span></div>
+            <div class="type-row__sample type-sample-num">₹4,82,600.00 &nbsp; <span style="font-size:15px;font-weight:500;color:var(--ink-3)">aligned to the last digit</span></div>
+          </div>
+          <div class="type-spec__foot">
+            <span><b>Devanagari:</b> Noto Sans Devanagari 400–650, 1.3× line height</span>
+            <span><b>Minimum size:</b> 10px labels, 11px legal</span>
+            <span><b>Numbers:</b> tabular everywhere money or quantity appears</span>
+          </div>
+        </div>
+
+        <!-- Space + radius + elevation -->
+        <div class="sub-head">
+          <div>
+            <h3>Space, radius & elevation</h3>
+            <p>A 4-point rhythm keeps layouts breathing. Radii scale with importance: controls 12–16, cards 20–24, sheets 38.</p>
+          </div>
+          <span class="sub-head__meta">4 pt base · 8 steps</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px" class="found-split">
+          <div>
+            <div class="space-scale">
+              <div class="space-row"><code>sp-2</code><div class="space-row__bar" style="width:8px"></div><span class="space-row__val">8</span></div>
+              <div class="space-row"><code>sp-3</code><div class="space-row__bar" style="width:12px"></div><span class="space-row__val">12</span></div>
+              <div class="space-row"><code>sp-4</code><div class="space-row__bar" style="width:16px"></div><span class="space-row__val">16</span></div>
+              <div class="space-row"><code>sp-5</code><div class="space-row__bar" style="width:20px"></div><span class="space-row__val">20</span></div>
+              <div class="space-row"><code>sp-6</code><div class="space-row__bar" style="width:24px"></div><span class="space-row__val">24</span></div>
+              <div class="space-row"><code>sp-7</code><div class="space-row__bar" style="width:32px"></div><span class="space-row__val">32</span></div>
+              <div class="space-row"><code>sp-8</code><div class="space-row__bar" style="width:40px"></div><span class="space-row__val">40</span></div>
+              <div class="space-row"><code>sp-10</code><div class="space-row__bar" style="width:64px"></div><span class="space-row__val">64</span></div>
+            </div>
+            <div class="radius-grid" style="margin-top:26px">
+              <div class="radius-card"><div class="radius-card__shape" style="border-radius:8px"></div><b>XS</b><span>8px</span></div>
+              <div class="radius-card"><div class="radius-card__shape" style="border-radius:12px"></div><b>SM</b><span>12px</span></div>
+              <div class="radius-card"><div class="radius-card__shape" style="border-radius:16px"></div><b>MD</b><span>16px</span></div>
+              <div class="radius-card"><div class="radius-card__shape" style="border-radius:24px"></div><b>XL</b><span>24px</span></div>
+              <div class="radius-card"><div class="radius-card__shape" style="border-radius:34px"></div><b>Sheet</b><span>34px</span></div>
+            </div>
+          </div>
+          <div class="elev-grid" style="align-content:start;grid-template-columns:1fr 1fr">
+            <div class="elev-card" style="box-shadow:var(--shadow-xs)"><b>XS</b><span>resting rows</span></div>
+            <div class="elev-card" style="box-shadow:var(--shadow-sm)"><b>SM</b><span>cards</span></div>
+            <div class="elev-card" style="box-shadow:var(--shadow-md)"><b>MD</b><span>sheets, draft</span></div>
+            <div class="elev-card" style="box-shadow:var(--shadow-lg)"><b>LG</b><span>modals, device</span></div>
+          </div>
+        </div>
+
+        <!-- Icons -->
+        <div class="sub-head">
+          <div>
+            <h3>Iconography</h3>
+            <p>One family: 24 px grid, 1.6 px stroke, rounded caps and joins. Icons inherit colour and never sit inside a filled shape unless it is an action tile.</p>
+          </div>
+          <span class="sub-head__meta">Custom set · stroke 1.6</span>
+        </div>
+        <div class="icon-grid" id="icon-grid"></div>
+      </section>
+
+      <!-- ================= 03 Components ================= -->
+      <section class="sec" id="components">
+        <div class="sec-head">
+          <span class="eyebrow"><b>03</b>Components</span>
+          <h2>The same parts, in every screen.</h2>
+          <p class="sec__lead">Buttons, fields, cards and states are built once. If a screen needs something new, it inherits the nearest pattern before inventing one.</p>
+        </div>
+
+        <div class="sub-head" style="margin-top:0">
+          <div><h3>Actions</h3><p>One primary action per view. Destructive actions are never tinted as primary.</p></div>
+          <span class="sub-head__meta">48 px · radius 16</span>
+        </div>
+        <div class="demo-grid">
+          <div class="demo demo--wide">
+            <span class="demo__label">Buttons</span>
+            <div class="demo__body demo__body--row">
+              <button class="btn btn--primary" type="button">Approve & save</button>
+              <button class="btn btn--soft" type="button">Soft</button>
+              <button class="btn btn--outline" type="button">Outline</button>
+              <button class="btn btn--ghost" type="button">Ghost</button>
+              <button class="btn btn--danger" type="button">Delete</button>
+            </div>
+            <div class="demo__body demo__body--row">
+              <button class="btn btn--primary btn--sm" type="button">Small</button>
+              <button class="btn btn--outline btn--sm" type="button"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>With icon</button>
+              <button class="btn btn--primary btn--pill" type="button"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg>Ask Dost</button>
+              <button class="btn btn--primary is-loading" type="button">Saving</button>
+              <button class="btn btn--primary" type="button" disabled>Disabled</button>
+            </div>
+            <p class="demo__note">Press feedback is a 0.975 scale over 160 ms. Loading keeps the label width to avoid layout shift.</p>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Icon buttons</span>
+            <div class="demo__body demo__body--row">
+              <button class="icon-btn" type="button" aria-label="Search"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></button>
+              <button class="icon-btn icon-btn--plain" type="button" aria-label="Notifications"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg></button>
+              <button class="icon-btn" type="button" aria-label="Scan"><svg class="i" aria-hidden="true"><use href="#i-scan"/></svg></button>
+              <button class="icon-btn icon-btn--sm" type="button" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+            </div>
+            <p class="demo__note">40 × 40 with a 44 × 44 hit pad. Plain variant is borderless.</p>
+          </div>
+
+          <div class="demo demo--wide">
+            <span class="demo__label">Status pills & chips</span>
+            <div class="demo__body demo__body--row">
+              <span class="pill pill--success"><i class="pill__dot"></i>Paid</span>
+              <span class="pill pill--warn"><i class="pill__dot"></i>Due</span>
+              <span class="pill pill--danger"><i class="pill__dot"></i>Overdue</span>
+              <span class="pill pill--brand">AI draft</span>
+              <span class="pill pill--info">Synced</span>
+              <span class="pill">Cash</span>
+              <span class="chip chip--active">All 248</span>
+              <span class="chip">Udhaar</span>
+            </div>
+            <p class="demo__note">Pills describe state, not actions. Chips filter or select. Text stays sentence case.</p>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Avatars & counts</span>
+            <div class="demo__body">
+              <div class="hstack gap-2">
+                <span class="avatar avatar--mint">RK</span>
+                <span class="avatar avatar--sky">MT</span>
+                <span class="avatar avatar--sand">GS</span>
+                <span class="avatar avatar--lilac avatar--sm" style="position:relative">AD<i class="avatar__status"></i></span>
+                <span class="badge-count">3</span>
+              </div>
+              <div class="hstack gap-2">
+                <div class="avatar-stack">
+                  <span class="avatar avatar--sm avatar--mint">RK</span>
+                  <span class="avatar avatar--sm avatar--sky">MT</span>
+                  <span class="avatar avatar--sm avatar--sand">GS</span>
+                  <span class="avatar avatar--sm">+8</span>
+                </div>
+                <span style="font-size:10.5px;color:var(--ink-3)">3 approvals waiting</span>
+              </div>
+            </div>
+            <p class="demo__note">Tones come from the chart palette at 14% opacity.</p>
+          </div>
+        </div>
+
+        <div class="sub-head">
+          <div><h3>Inputs & selection</h3><p>Fields are 52 px tall with a visible label, a hint and an inline error. Focus is a 3 px evergreen ring.</p></div>
+          <span class="sub-head__meta">Radius 14</span>
+        </div>
+        <div class="demo-grid">
+          <div class="demo">
+            <span class="demo__label">Field</span>
+            <div class="demo__body">
+              <div class="field">
+                <label class="field__label" for="demo-phone">Mobile number <span class="field__hint">Optional</span></label>
+                <div class="input-wrap"><span class="input-prefix">+91</span><input class="input" id="demo-phone" value="98765 43210" /></div>
+                <span class="field__hint">We'll text a 6-digit code.</span>
+              </div>
+            </div>
+          </div>
+          <div class="demo">
+            <span class="demo__label">Search</span>
+            <div class="demo__body">
+              <div class="input-wrap input-wrap--search">
+                <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+                <input class="input" placeholder="Search by name or phone" aria-label="Search" />
+              </div>
+            </div>
+            <span class="demo__label" style="margin-top:2px">Error state</span>
+            <div class="demo__body">
+              <div class="field">
+                <div class="input-wrap input-wrap--error"><input class="input" value="9876" aria-invalid="true" aria-label="Invalid phone" /></div>
+                <span class="field__error">Enter a 10-digit mobile number.</span>
+              </div>
+            </div>
+          </div>
+          <div class="demo">
+            <span class="demo__label">Segmented control</span>
+            <div class="demo__body">
+              <div class="segmented" role="tablist">
+                <button class="segmented__btn" role="tab" aria-selected="true">Invoices</button>
+                <button class="segmented__btn" role="tab" aria-selected="false">Estimates</button>
+                <button class="segmented__btn" role="tab" aria-selected="false">Payments</button>
+              </div>
+              <div class="hstack gap-2" style="flex-wrap:wrap">
+                <span class="chip chip--active">All 248</span>
+                <span class="chip">Udhaar</span>
+                <span class="chip">VIP</span>
+              </div>
+            </div>
+            <p class="demo__note">Chips filter lists; segments switch views.</p>
+          </div>
+          <div class="demo">
+            <span class="demo__label">Toggles</span>
+            <div class="demo__body">
+              <div class="hstack" style="justify-content:space-between">
+                <span style="font-size:13px;font-weight:550">Notifications</span>
+                <button class="switch" role="switch" aria-checked="true" aria-label="Notifications"><span class="switch__knob"></span></button>
+              </div>
+              <div class="hstack" style="justify-content:space-between">
+                <span style="font-size:13px;font-weight:550">App lock</span>
+                <button class="switch" role="switch" aria-checked="false" aria-label="App lock"><span class="switch__knob"></span></button>
+              </div>
+              <div class="hstack gap-3">
+                <span class="hstack gap-2"><span class="checkbox checkbox--on"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></span><span style="font-size:12px">Selected</span></span>
+                <span class="hstack gap-2"><span class="radio radio--on"></span><span style="font-size:12px">Radio</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-head">
+          <div><h3>Cards & data display</h3><p>Cards group a single idea. Money is always right-aligned with tabular numerals; charts stay monochrome except for the series that matters.</p></div>
+          <span class="sub-head__meta">Radius 20–24</span>
+        </div>
+        <div class="demo-grid">
+          <div class="demo">
+            <span class="demo__label">Metric card</span>
+            <div class="metric-demo card" style="box-shadow:none">
+              <div class="metric-demo__label">Collected this month</div>
+              <div class="metric-demo__value">₹4,82,600</div>
+              <div class="metric-demo__foot">
+                <span class="pill pill--success"><i class="pill__dot"></i>+18.2%</span>
+                <span style="font-size:10.5px;color:var(--ink-3)">vs October</span>
+              </div>
+              <div class="metric-demo__spark">
+                <svg viewBox="0 0 300 36" preserveAspectRatio="none" style="width:100%;height:36px"><path d="M0 28C25 24 35 18 60 20C85 22 95 12 120 14C145 16 155 8 180 10C205 12 215 4 240 6C265 8 280 3 300 4" fill="none" stroke="var(--chart-1)" stroke-width="1.8" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+            <p class="demo__note">Hero cards invert to ink for the single most important number.</p>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">List row</span>
+            <div class="demo__body" style="padding:0;margin:0 -16px">
+              <div class="row" style="padding:12px 16px">
+                <span class="avatar avatar--mint">RK</span>
+                <div class="row__body"><span class="row__title">Ramesh Kumar</span><span class="row__sub">Invoice #2419 · UPI</span></div>
+                <div class="row__end"><span class="row__amount">₹4,200</span><span class="pill pill--success"><i class="pill__dot"></i>Paid</span></div>
+              </div>
+              <div class="row" style="padding:12px 16px">
+                <span class="avatar avatar--sky">MT</span>
+                <div class="row__body"><span class="row__title">Meera Textiles</span><span class="row__sub">Payment received · 12:40 pm</span></div>
+                <div class="row__end"><span class="row__amount">₹6,800</span><span class="pill pill--warn"><i class="pill__dot"></i>Pending</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Progress & confidence</span>
+            <div class="demo__body">
+              <div>
+                <div class="hstack" style="justify-content:space-between;font-size:11px;color:var(--ink-3);margin-bottom:6px"><span>Cement OPC 53</span><span>8 of 40 bags</span></div>
+                <div class="progress progress--danger"><i class="progress__fill" style="width:20%"></i></div>
+              </div>
+              <div>
+                <div class="hstack" style="justify-content:space-between;font-size:11px;color:var(--ink-3);margin-bottom:6px"><span>AI confidence</span><span>96%</span></div>
+                <div class="progress"><i class="progress__fill" style="width:96%;background:var(--ai-gradient)"></i></div>
+              </div>
+              <div class="hstack gap-2" style="margin-top:2px">
+                <div class="avatar-stack">
+                  <span class="avatar avatar--sm avatar--mint">RK</span>
+                  <span class="avatar avatar--sm avatar--sky">MT</span>
+                  <span class="avatar avatar--sm avatar--sand">GS</span>
+                  <span class="avatar avatar--sm">+8</span>
+                </div>
+                <span style="font-size:10.5px;color:var(--ink-3)">3 approvals today</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Donut & legend</span>
+            <div class="demo__body demo__body--row" style="gap:16px">
+              <div class="donut" style="width:96px;height:96px;flex:none">
+                <svg viewBox="0 0 96 96" style="width:96px;height:96px">
+                  <circle cx="48" cy="48" r="38" fill="none" stroke="var(--chart-track)" stroke-width="12"/>
+                  <circle cx="48" cy="48" r="38" fill="none" stroke="var(--chart-1)" stroke-width="12" stroke-linecap="round" stroke-dasharray="124 114.8" stroke-dashoffset="0"/>
+                  <circle cx="48" cy="48" r="38" fill="none" stroke="var(--chart-2)" stroke-width="12" stroke-linecap="round" stroke-dasharray="38 200.8" stroke-dashoffset="-129"/>
+                  <circle cx="48" cy="48" r="38" fill="none" stroke="var(--chart-3)" stroke-width="12" stroke-linecap="round" stroke-dasharray="20 218.8" stroke-dashoffset="-172"/>
+                </svg>
+              </div>
+              <div class="legend">
+                <div class="legend__item"><span class="legend__dot" style="background:var(--chart-1)"></span>Stock <span class="legend__val">52%</span></div>
+                <div class="legend__item"><span class="legend__dot" style="background:var(--chart-2)"></span>Rent <span class="legend__val">18%</span></div>
+                <div class="legend__item"><span class="legend__dot" style="background:var(--chart-3)"></span>Utilities <span class="legend__val">12%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Bar chart</span>
+            <div class="demo__body">
+              <div class="hstack" style="align-items:flex-end;gap:8px;height:86px;position:relative">
+                <div class="bars__grid" style="position:absolute;inset:0"><i></i><i></i><i></i><i></i></div>
+                <div class="bar-col" style="height:100%"><div class="bar" style="height:46px"><span class="bar__fill" style="height:100%;opacity:.32"></span></div><span class="bar-col__label">W1</span></div>
+                <div class="bar-col" style="height:100%"><div class="bar" style="height:62px"><span class="bar__fill" style="height:100%;opacity:.32"></span></div><span class="bar-col__label">W2</span></div>
+                <div class="bar-col bar-col--now" style="height:100%"><div class="bar" style="height:80px"><span class="bar__fill" style="height:100%"></span></div><span class="bar-col__label">Now</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Empty state</span>
+            <div class="demo__body" style="align-items:center;text-align:center;gap:8px;padding:8px 0">
+              <span class="icon-tile icon-tile--lg icon-tile--brand" style="width:52px;height:52px;border-radius:17px"><svg class="i i--lg" aria-hidden="true"><use href="#i-sales"/></svg></span>
+              <div style="font-size:13px;font-weight:650">No invoices yet</div>
+              <p style="font-size:11px;color:var(--ink-3);line-height:16px;max-width:200px">Create your first bill and Dost will start tracking udhaar for you.</p>
+              <button class="btn btn--soft btn--sm" type="button">Create invoice</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-head">
+          <div><h3>Feedback & AI objects</h3><p>Status is communicated with shape, icon and copy — never colour alone. AI objects always look like objects you can edit or reject.</p></div>
+          <span class="sub-head__meta">Never auto-save</span>
+        </div>
+        <div class="demo-grid">
+          <div class="demo demo--wide">
+            <span class="demo__label">Banners & approval card</span>
+            <div class="demo__body" style="flex-direction:row;gap:12px;flex-wrap:wrap">
+              <div class="banner banner--warn" style="flex:1;min-width:240px">
+                <span class="banner__icon"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg></span>
+                <span><b style="font-weight:650;color:var(--ink)">6 items running low.</b> At this pace they finish in 5 days.</span>
+              </div>
+              <div class="banner banner--info" style="flex:1;min-width:240px">
+                <span class="banner__icon"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg></span>
+                <span>Dost will never save a transaction without your approval.</span>
+              </div>
+            </div>
+            <div class="appr-card appr-card--ai" style="max-width:420px">
+              <div class="appr-card__head">
+                <span class="icon-tile icon-tile--brand"><svg class="i" aria-hidden="true"><use href="#i-ai"/></svg></span>
+                <div class="grow">
+                  <div class="appr-card__type">AI draft · Sales invoice</div>
+                  <div class="appr-card__title">#INV-2419 · Ramesh Kumar</div>
+                  <div class="appr-card__meta">12 bags cement · UPI · today, 4:12 pm</div>
+                </div>
+                <div class="appr-card__amount">₹4,200</div>
+              </div>
+              <div class="confidence"><div class="confidence__bar"><i style="width:96%"></i></div><span>96% confidence</span></div>
+              <div class="appr-card__actions">
+                <button class="btn btn--outline" type="button">Reject</button>
+                <button class="btn btn--primary" type="button"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Approve</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Bottom sheet</span>
+            <div class="demo__body" style="padding:0;margin:0 -16px -16px;overflow:hidden;border-radius:0 0 20px 20px">
+              <div class="sheet">
+                <div class="sheet__grab"></div>
+                <div class="hstack" style="justify-content:space-between;padding-bottom:10px">
+                  <b style="font-size:14px;letter-spacing:-.015em">Add expense</b>
+                  <button class="icon-btn icon-btn--sm icon-btn--plain" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+                </div>
+                <div class="field" style="margin-bottom:12px">
+                  <span class="field__label">Amount</span>
+                  <div class="input-wrap"><span class="input-prefix">₹</span><input class="input" value="14,000" aria-label="Amount" /></div>
+                </div>
+                <button class="btn btn--primary btn--block" type="button" style="margin-bottom:16px">Save expense</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Toasts & success</span>
+            <div class="demo__body">
+              <div class="appr-done"><svg class="i" aria-hidden="true"><use href="#i-check-circle"/></svg> Approved and added to today's sales.</div>
+              <div class="hstack gap-2" style="padding:10px 12px;border-radius:12px;background:var(--surface-inv);color:var(--surface);font-size:11.5px">
+                <svg class="i" aria-hidden="true" style="width:14px;height:14px"><use href="#i-refresh"/></svg> Undo
+                <span style="opacity:.6">Draft discarded</span>
+              </div>
+              <div class="hstack gap-2" style="font-size:11px;color:var(--ink-3)">
+                <span class="badge-count">3</span> pending approvals
+              </div>
+            </div>
+          </div>
+
+          <div class="demo">
+            <span class="demo__label">Navigation patterns</span>
+            <div class="demo__body">
+              <div class="tabs">
+                <button class="tab" aria-selected="true">Today</button>
+                <button class="tab" aria-selected="false">Week</button>
+                <button class="tab" aria-selected="false">Month</button>
+              </div>
+              <div class="hstack gap-2" style="font-size:11px;color:var(--ink-3);padding-top:4px">
+                <button class="icon-btn icon-btn--sm icon-btn--plain" aria-label="Back"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+                Back · large title left, actions right, Dost orb centred in the tab bar
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 04 Screens ================= -->
+      <section class="sec" id="screens">
+        <div class="sec-head">
+          <span class="eyebrow"><b>04</b>Screens</span>
+          <h2>Sixteen screens. One hand, one system.</h2>
+          <p class="sec__lead">Live mockups rendered in the browser — not images. Toggle light and dark in the sidebar, or open any screen for its purpose, components and interaction notes.</p>
+        </div>
+        <div class="gallery-toolbar">
+          <div class="gallery-filters" role="group" aria-label="Filter screens">
+            <button class="chip chip--active" data-filter="all" type="button">All 16</button>
+            <button class="chip" data-filter="Entry" type="button">Entry</button>
+            <button class="chip" data-filter="Operations" type="button">Operations</button>
+            <button class="chip" data-filter="AI" type="button">AI</button>
+            <button class="chip" data-filter="Account" type="button">Account</button>
+          </div>
+          <span class="gallery-count" id="gallery-count">16 screens · click to review</span>
+        </div>
+        <div class="gallery" id="gallery"></div>
+      </section>
+
+      <!-- ================= 05 Assistant ================= -->
+      <section class="sec" id="assistant">
+        <div class="sec-head">
+          <span class="eyebrow"><b>05</b>AI assistant</span>
+          <h2>Speaking should feel like a conversation, not a command line.</h2>
+          <p class="sec__lead">This is a working prototype of the voice flow — tap the microphone, watch the transcript, then approve or reject the draft. Everything you see is driven by the same tokens as the rest of the app.</p>
+        </div>
+        <div class="spotlight">
+          <div class="spotlight__copy">
+            <span class="eyebrow"><b>Live</b>Interactive prototype</span>
+            <div class="spotlight__features">
+              <div class="spotlight__feature"><span class="n">01</span><div><b>Listening</b><p>A single orb replaces every control. Rings breathe, the waveform responds, the transcript appears word by word with an editable caret.</p></div></div>
+              <div class="spotlight__feature"><span class="n">02</span><div><b>Understanding</b><p>Dost restates the command in plain language and shows what it matched — customer, item, quantity — before any numbers are committed.</p></div></div>
+              <div class="spotlight__feature"><span class="n">03</span><div><b>Drafting</b><p>The result is a real, editable transaction card with a confidence meter and a plain-language "why". Nothing saves until approved.</p></div></div>
+              <div class="spotlight__feature"><span class="n">04</span><div><b>Deciding</b><p>Approve and reject keep the same size and position across every card. Approval writes to sales, stock and the ledger in one motion.</p></div></div>
+              <div class="spotlight__feature"><span class="n">05</span><div><b>Language</b><p>Hindi, English and Hinglish are equal citizens. The transcript, the response and the draft all follow the chosen language.</p></div></div>
+            </div>
+            <div class="hstack gap-2" style="margin-top:22px;flex-wrap:wrap">
+              <span class="pill pill--brand">Voice-first</span>
+              <span class="pill">Editable drafts</span>
+              <span class="pill">Never auto-saves</span>
+              <span class="pill">Audio playback</span>
+            </div>
+          </div>
+          <div class="spotlight__stage">
+            <div class="assistant-state-chips" role="group" aria-label="Assistant state">
+              <button class="chip chip--active" data-assistant="idle" type="button">Idle</button>
+              <button class="chip" data-assistant="listening" type="button">Listening</button>
+              <button class="chip" data-assistant="thinking" type="button">Thinking</button>
+              <button class="chip" data-assistant="review" type="button">Draft</button>
+            </div>
+            <div class="spotlight__device device-slot" id="assistant-phone"></div>
+            <div class="spotlight__hint"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg> This mockup is interactive — tap the mic to start.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 06 Motion ================= -->
+      <section class="sec" id="motion">
+        <div class="sec-head">
+          <span class="eyebrow"><b>06</b>Motion</span>
+          <h2>Motion that explains, not decorates.</h2>
+          <p class="sec__lead">Animations are short, interruptible and transform/opacity only. Every one has a purpose: confirm a tap, show where a sheet came from, or signal that Dost is listening.</p>
+        </div>
+        <div class="motion-grid">
+          <div class="motion-card">
+            <div class="motion-stage"><span class="motion-dot" id="demo-press"></span></div>
+            <div><b>Press confirmation</b><p>Scale 0.975 on tap, 160 ms. Applied to every button and card action.</p><code>--dur-fast · --ease-standard</code></div>
+            <button class="btn btn--soft btn--sm" type="button" data-replay="press">Replay</button>
+          </div>
+          <div class="motion-card">
+            <div class="motion-stage" style="align-items:end"><div class="motion-sheet" id="demo-sheet"></div></div>
+            <div><b>Sheet entrance</b><p>Slides from the bottom edge with a fast start and soft landing.</p><code>--dur-slow · --ease-entrance</code></div>
+            <button class="btn btn--soft btn--sm" type="button" data-replay="sheet">Replay</button>
+          </div>
+          <div class="motion-card">
+            <div class="motion-stage"><span class="motion-row" id="demo-row"><i></i><span></span></span></div>
+            <div><b>List item appear</b><p>Rows fade and rise 8 px, staggered 40 ms. Capped at 8 items per view.</p><code>--dur-base · --ease-entrance</code></div>
+            <button class="btn btn--soft btn--sm" type="button" data-replay="row">Replay</button>
+          </div>
+          <div class="motion-card">
+            <div class="motion-stage"><span class="motion-orb"><i></i><i></i></span></div>
+            <div><b>Listening pulse</b><p>Two expanding rings, 3 s, ease-out. Pauses entirely when the app is backgrounded.</p><code>--dur-slower · --ease-standard</code></div>
+            <p style="font-size:10px;color:var(--ink-4);margin:0">Reduced motion: rings become a static halo.</p>
+          </div>
+        </div>
+        <div class="sub-head">
+          <div><h3>Timing tokens</h3><p>A small, opinionated set. If a new duration is needed, it is almost certainly one of these.</p></div>
+          <span class="sub-head__meta">5 durations · 4 curves</span>
+        </div>
+        <div class="demo-grid">
+          <div class="demo">
+            <span class="demo__label">Durations</span>
+            <div class="space-scale">
+              <div class="space-row"><code>instant</code><div class="space-row__bar" style="width:10%"></div><span class="space-row__val">100 ms</span></div>
+              <div class="space-row"><code>fast</code><div class="space-row__bar" style="width:16%"></div><span class="space-row__val">160 ms</span></div>
+              <div class="space-row"><code>base</code><div class="space-row__bar" style="width:24%"></div><span class="space-row__val">240 ms</span></div>
+              <div class="space-row"><code>slow</code><div class="space-row__bar" style="width:32%"></div><span class="space-row__val">320 ms</span></div>
+              <div class="space-row"><code>slower</code><div class="space-row__bar" style="width:48%"></div><span class="space-row__val">480 ms</span></div>
+            </div>
+          </div>
+          <div class="demo">
+            <span class="demo__label">Curves</span>
+            <div class="code" style="margin-top:0;padding:14px 16px">
+--ease-standard   cubic-bezier(.2,.7,.3,1)<br/>
+--ease-entrance   cubic-bezier(.16,1,.3,1)<br/>
+--ease-exit       cubic-bezier(.4,0,1,1)<br/>
+--ease-spring     cubic-bezier(.34,1.56,.64,1)
+            </div>
+            <p class="demo__note">Spring is reserved for the mic orb and switch knobs — never for text or sheets.</p>
+          </div>
+          <div class="demo">
+            <span class="demo__label">Performance budget</span>
+            <div class="demo__body" style="gap:8px;font-size:11.5px;color:var(--ink-2)">
+              <div class="hstack gap-2"><svg class="i" style="width:14px;height:14px;color:var(--brand-text)" aria-hidden="true"><use href="#i-check"/></svg>60 fps target on a 4-year-old mid-range Android</div>
+              <div class="hstack gap-2"><svg class="i" style="width:14px;height:14px;color:var(--brand-text)" aria-hidden="true"><use href="#i-check"/></svg>Animate transform & opacity only</div>
+              <div class="hstack gap-2"><svg class="i" style="width:14px;height:14px;color:var(--brand-text)" aria-hidden="true"><use href="#i-check"/></svg>Blur is limited to the tab bar and 2 overlays</div>
+              <div class="hstack gap-2"><svg class="i" style="width:14px;height:14px;color:var(--brand-text)" aria-hidden="true"><use href="#i-check"/></svg>Charts are static SVG — no canvas loop</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 07 Accessibility ================= -->
+      <section class="sec" id="accessibility">
+        <div class="sec-head">
+          <span class="eyebrow"><b>07</b>Accessibility</span>
+          <h2>Readable in a shop, in sunlight, <span style="white-space:nowrap">one-handed.</span></h2>
+          <p class="sec__lead">Contrast, touch targets, dynamic type and screen-reader labels are treated as design materials — not a QA checklist at the end.</p>
+        </div>
+        <div class="a11y-grid">
+          <div class="a11y-card">
+            <h4>Contrast, measured</h4>
+            <p>Every text token against its intended surface. All pairs meet WCAG AA for normal text; most exceed AAA.</p>
+            <table class="contrast-table">
+              <thead><tr><th>Token / surface</th><th>Ratio</th><th>Result</th></tr></thead>
+              <tbody>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--ink)"></span>ink on surface</span></td><td class="ratio">19.65</td><td><span class="pass">AAA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--ink-2)"></span>ink-2 on surface</span></td><td class="ratio">9.22</td><td><span class="pass">AAA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--ink-3)"></span>ink-3 on surface</span></td><td class="ratio">4.98</td><td><span class="pass">AA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--brand-text)"></span>brand on white</span></td><td class="ratio">6.54</td><td><span class="pass">AA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--brand)"></span>white on brand</span></td><td class="ratio">6.54</td><td><span class="pass">AA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--danger)"></span>danger on white</span></td><td class="ratio">5.52</td><td><span class="pass">AA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:var(--warn)"></span>warn on white</span></td><td class="ratio">4.68</td><td><span class="pass">AA</span></td></tr>
+                <tr><td><span class="contrast-sample"><span class="contrast-chip" style="background:#121216"></span>dark surface · ink</span></td><td class="ratio">17.13</td><td><span class="pass">AAA</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="a11y-card">
+            <h4>Touch & reach</h4>
+            <p>Minimum 44 × 44 pt targets, 8 pt apart. Primary actions sit in the lower third of the screen.</p>
+            <div class="tap-demo">
+              <span class="tap-target"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              <span class="tap-copy"><b style="color:var(--ink)">44 × 44 minimum.</b><br/>Visible icons may be smaller; the hit area never is. Row heights are at least 60 pt.</span>
+            </div>
+            <div class="focus-demo" style="margin-top:14px">
+              <span class="fake-focus btn btn--outline" style="width:max-content">Keyboard focus ring</span>
+              <span class="tap-copy">2–3 px evergreen ring with 2 px offset on light, 3 px on dark.</span>
+            </div>
+            <div class="hstack gap-2" style="margin-top:14px;flex-wrap:wrap">
+              <span class="pill pill--brand">Dynamic type</span>
+              <span class="pill">Reduce motion</span>
+              <span class="pill">Screen readers</span>
+              <span class="pill">VoiceOver</span>
+            </div>
+          </div>
+        </div>
+        <div class="a11y-grid" style="margin-top:14px">
+          <div class="a11y-card">
+            <h4>What we commit to</h4>
+            <ul class="a11y-list" style="margin-top:12px">
+              <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Text scales to 200% without clipping; cards grow vertically instead.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Never colour alone: every status has a label and a dot or icon.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>One logical focus order; the Dost orb is reachable after tabs.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>All icons decorative unless they carry the only label — then aria-label.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Voice flow has a full text alternative via the keyboard button.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Motion pauses when the app loses focus and respects the OS setting.</li>
+            </ul>
+          </div>
+          <div class="a11y-card">
+            <h4>Dark mode is a first-class theme</h4>
+            <p>Not an inversion. Surfaces are layered charcoal, borders do the work of shadows, and the evergreen brightens to mint for contrast on black.</p>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px">
+              <div style="border-radius:12px;overflow:hidden;border:1px solid var(--line)"><div style="height:44px;background:#08080a"></div><div style="height:16px;background:#121216"></div></div>
+              <div style="border-radius:12px;overflow:hidden;border:1px solid var(--line)"><div style="height:44px;background:#121216"></div><div style="height:16px;background:#16161b"></div></div>
+              <div style="border-radius:12px;overflow:hidden;border:1px solid var(--line)"><div style="height:44px;background:#3ed3ad"></div><div style="height:16px;background:#0a6a56"></div></div>
+              <div style="border-radius:12px;overflow:hidden;border:1px solid var(--line)"><div style="height:44px;background:linear-gradient(135deg,#3ee0b2,#5fbcf7,#ab9cf7)"></div><div style="height:16px;background:#1d1d23"></div></div>
+            </div>
+            <p class="demo__note" style="margin-top:12px">Pure black is reserved for the device frame and splash; app surfaces lift to #121216 so cards stay legible in sunlight.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 08 Handoff ================= -->
+      <section class="sec" id="handoff">
+        <div class="sec-head">
+          <span class="eyebrow"><b>08</b>Handoff</span>
+          <h2>From review to production.</h2>
+          <p class="sec__lead">The tokens here are implementation-ready and mirrored in <code style="font-size:13px">design/tokens.json</code>. The same values map cleanly to Flutter or React Native.</p>
+        </div>
+        <div class="handoff-grid">
+          <div class="handoff-card">
+            <h4>Token contract</h4>
+            <p>Semantic names, not hex codes, inside components. Theme switching becomes a single map swap.</p>
+            <div class="code"><span class="tok-com">/* design/tokens.css */</span><br/>
+<span class="tok-key">--brand</span>: <span class="tok-val">#0a6a56</span>;      <span class="tok-com">/* evergreen */</span><br/>
+<span class="tok-key">--brand-text</span>: <span class="tok-val">#0a6a56</span>; <span class="tok-com">/* on light */</span><br/>
+<span class="tok-key">--surface</span>: <span class="tok-val">#ffffff</span>;<br/>
+<span class="tok-key">--r-xl</span>: <span class="tok-val">24px</span>;<br/>
+<span class="tok-key">--dur-base</span>: <span class="tok-val">240ms</span>;<br/><br/>
+<span class="tok-com">[data-theme="dark"] {</span><br/>
+&nbsp;&nbsp;<span class="tok-key">--brand</span>: <span class="tok-val">#3ed3ad</span>;<br/>
+&nbsp;&nbsp;<span class="tok-key">--surface</span>: <span class="tok-val">#121216</span>;<br/>
+<span class="tok-com">}</span></div>
+          </div>
+          <div class="handoff-card">
+            <h4>Framework mapping</h4>
+            <p>Same hierarchy, framework-idiomatic names.</p>
+            <div class="code" style="margin-top:14px"><span class="tok-com">// Flutter</span><br/>
+ThemeData(<br/>
+&nbsp;&nbsp;colorScheme: ColorScheme(<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;primary: tokens.brand,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;surface: tokens.surface,<br/>
+&nbsp;&nbsp;),<br/>
+&nbsp;&nbsp;textTheme: scale.apply(fontFamily: <span class="tok-val">'Inter'</span>),<br/>
+&nbsp;&nbsp;pageTransitionsTheme: Cupertino…<br/>
+)</div>
+          </div>
+          <div class="handoff-card">
+            <h4>Screen inventory</h4>
+            <ul class="checklist" id="inventory-list"></ul>
+          </div>
+          <div class="handoff-card">
+            <h4>Build notes & next steps</h4>
+            <ul class="a11y-list" style="margin-top:10px">
+              <li><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>Mockups are HTML/CSS at 390 × 844 logical points — ready to translate 1:1 into Flutter or RN.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>Fonts: Inter Variable (OFL) and Noto Sans Devanagari (OFL) are vendored locally.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>State to wire next: voice capture, transcript editing, draft approval, offline cache.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>Suggested phase 2: empty states, error states, tablet layout, receipt print preview.</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span>Full rationale in <b style="font-weight:600;color:var(--ink-2)">docs/DESIGN_SYSTEM.md</b>; run instructions and scope in <b style="font-weight:600;color:var(--ink-2)">README.md</b>.</span></li>
+            </ul>
+            <div class="hstack gap-2" style="margin-top:16px;flex-wrap:wrap">
+              <span class="pill pill--success">Mockups v1.0</span>
+              <span class="pill">Awaiting sign-off</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div class="footer__brand">
+            <svg class="rail__mark" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg>
+            Business Dost AI
+          </div>
+          <div class="footer__meta">Design review v1.0 · November 2026<br/>Original identity — inspired by clarity, not copied from anyone.</div>
+          <div class="footer__links">
+            <a href="#overview">Back to top</a>
+            <a href="#screens">Screens</a>
+            <a href="#assistant">Assistant</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ================= Focus modal ================= -->
+<div class="modal" id="screen-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-hidden="true">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="document">
+    <button class="modal__close" type="button" aria-label="Close screen review" data-close-modal>
+      <svg class="i" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+    <div class="modal__stage" id="modal-stage"></div>
+    <div class="modal__notes">
+      <div>
+        <div class="modal__eyebrow" id="modal-eyebrow">Screen 05 · Operations</div>
+        <h3 class="modal__title" id="modal-title">Home dashboard</h3>
+      </div>
+      <p class="modal__purpose" id="modal-purpose"></p>
+      <div>
+        <div class="modal__section-title">Components</div>
+        <div class="modal__tokens" id="modal-components"></div>
+      </div>
+      <div>
+        <div class="modal__section-title">Interactions</div>
+        <ul class="modal__list" id="modal-interactions"></ul>
+      </div>
+      <div>
+        <div class="modal__section-title">Key tokens</div>
+        <div class="modal__tokens" id="modal-tokens"></div>
+      </div>
+      <div class="modal__spec" id="modal-spec"></div>
+      <div class="modal__nav">
+        <button class="btn btn--outline" type="button" id="modal-prev"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg>Previous</button>
+        <button class="btn btn--primary" type="button" id="modal-next">Next<svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/screens.js"></script>
+<script src="js/assistant.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

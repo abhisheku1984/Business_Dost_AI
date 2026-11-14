@@ -1,1 +1,113 @@
-# Business_Dost_AI
+# Business Dost AI
+
+A premium, voice-first business companion for Indian shop owners — customers, sales and billing,
+expenses, inventory, suppliers, reports, an AI assistant that drafts transactions, approvals,
+subscription and settings.
+
+This repository currently contains **Phase 1: the design system and 16 high-fidelity screen mockups**,
+built for review before the production app is implemented.
+
+> **Status: ready for review · awaiting sign-off.**
+> 16 screens · light and dark · interactive voice prototype · original visual identity.
+
+---
+
+## Open the review
+
+No build step and no network needed — all fonts and icons are local.
+
+```bash
+python3 -m http.server 4173 --directory design
+# then open http://localhost:4173
+```
+
+Or simply open `design/index.html` in a browser. The page works offline and is designed for both
+desktop review and a 390 px phone.
+
+What to do first:
+
+1. **Overview** — the point of view and the four principles.
+2. **Foundations** — mark, colour, type, spacing, icons, light/dark.
+3. **Components** — buttons, fields, pills, avatars, progress, tab bar.
+4. **Screens** — 16 mockups; click any one for its purpose, components, interactions and tokens.
+5. **AI assistant** — a working voice prototype: tap the mic, watch the transcript, approve or reject.
+6. **Motion / Accessibility / Handoff** — timing, contrast evidence and implementation notes.
+
+---
+
+## What's in the box
+
+```
+design/
+  index.html            Review site — all sections, inline SVG sprite, modal specs
+  css/
+    tokens.css          Source of truth: type, colour, space, radius, elevation, motion
+    components.css      Every component, token-driven for both themes
+    screens.css         Device frame + the 16 screen compositions
+    site.css            Review-site shell
+  js/
+    app.js              Gallery, modal, filters, theme, scroll-spy, specs, icon grid
+    screens.js          The 16 screens as data + markup (window.BD_SCREENS)
+    assistant.js        Interactive voice flow: listening → thinking → draft → approve
+  assets/fonts/         Inter Variable + Noto Sans Devanagari (self-hosted, OFL)
+  tokens.json           Machine-readable token mirror
+docs/
+  DESIGN_SYSTEM.md      Principles, colour, type, components, motion, AI model, a11y
+```
+
+---
+
+## The design in one page
+
+- **Original identity.** A D monogram holding a spark; deep jade `#0a6a56` in light, mint `#3ed3ad`
+  in dark. No Apple assets, layouts or copy.
+- **One accent, one gradient.** The aurora gradient (`#35d6a9 → #54b4f2 → #9c8df2`) is reserved for
+  AI moments; blue and violet appear nowhere else.
+- **Type:** Inter Variable + Noto Sans Devanagari, 34/28/22/17/15/13/11, tabular numerals for money.
+- **Space:** 4 pt scale, 390 × 844 canvas, 20 pt gutters, 20 pt card radius, 54/34 pt safe areas.
+- **Motion:** 100–480 ms, transform/opacity only, ambient loops stop under reduced motion.
+- **Trust:** AI drafts, the owner approves. The reasoning, confidence and ledger effect are always shown.
+
+Full detail: [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) and [`design/tokens.json`](design/tokens.json).
+
+### Screens
+
+| | | | |
+| --- | --- | --- | --- |
+| 01 Splash | 02 Log in | 03 Create account | 04 Business onboarding |
+| 05 Home dashboard | 06 Customers | 07 Sales & billing | 08 Expenses |
+| 09 Inventory | 10 Suppliers | 11 Reports | 12 AI voice · listening |
+| 13 AI voice · draft review | 14 Pending approvals | 15 Subscription | 16 User settings |
+
+---
+
+## Quality checks done
+
+- Every screen rendered and reviewed at 390 × 844 in **both themes** — no overlap, clipping or
+  double-scrolled layouts.
+- Contrast measured: body text ≥ 4.5:1, large text ≥ 3:1 in both themes (table in the review site).
+- Touch targets ≥ 44 pt; focus states visible; icon-only controls labelled.
+- Review site checked at 1440 px and 390 px: no horizontal scroll, gallery and modal usable on phone.
+- Voice prototype exercised through all states: idle → listening → thinking → draft → approve / reject /
+  undo, plus language switching and audio playback.
+- Keyboard: Esc closes the modal, arrows move between screens, gallery items are reachable and
+  activatable with Enter/Space.
+
+## Limits of this phase
+
+These are high-fidelity, static mockups plus one scripted prototype — not the production app.
+There is no backend, authentication, persistence or real speech recognition. Charts use curated
+fixtures. The interactive assistant is deterministic on purpose so the flow can be reviewed quickly.
+
+## Next phase (after sign-off)
+
+1. Flutter implementation of the token map, components and 16 screens.
+2. Real voice capture, transcription, language detection and draft extraction.
+3. Offline-first ledger with sync, approval audit trail and undo.
+4. Empty, error and offline states; tablet layout; receipt print preview.
+5. Instrumentation for the AI acceptance rate and time-to-approve.
+
+---
+
+*Fonts: Inter and Noto Sans Devanagari, SIL Open Font License. Identity, copy and screen designs are
+original to Business Dost AI.*
