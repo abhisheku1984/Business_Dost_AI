@@ -127,6 +127,9 @@ design/
     app.js              Gallery, modal, filters, theme, scroll-spy, specs, icon grid
     screens.js          The 16 screens as data + markup (window.BD_SCREENS)
     assistant.js        Interactive voice flow: listening → thinking → draft → approve
+    live.js             The working app — all screens, actions and the rule-based Dost
+    drive.js            Google Drive storage (opt-in): connect, save, resume, disconnect
+    drive-config.js     Your OAuth client ID lives here (empty = on-device only)
   assets/fonts/         Inter Variable + Noto Sans Devanagari (self-hosted, OFL)
   tokens.json           Machine-readable token mirror
 docs/
@@ -136,6 +139,26 @@ run.bat / run.command / run.sh   One-click local launchers
 ```
 
 ---
+
+## What the working app actually does
+
+Everything below runs today in `design/live.html` — no mockups.
+
+| Area | State |
+| --- | --- |
+| Sales, invoices, GST, quotations → bills | Working |
+| Products **and services** (HSN/SAC, no stock for services) | Working |
+| Customers, udhaar, part payments, reminders | Working |
+| Suppliers, purchase bills, stock-in, payables | Working |
+| Stock movements, low-stock alerts, profit & COGS | Working |
+| Expenses, categories, reports, 14-day charts | Working |
+| Documents — bill photos, compressed and stored with the data | Working |
+| Reminders + device notifications (while the app is open) | Working |
+| People & roles — owner vs staff, with an activity log | Working |
+| Plan screen (Free now; Play Billing not connected) | Visible, not billable |
+| Ask Dost — ~20 intents, English **and** Hindi answers, read aloud | Working (rule-based, no LLM yet) |
+| Storage | One JSON document — this device, or **your own Google Drive** |
+| Android package (AAB), push, multi-device staff | Not built |
 
 ## The design in one page
 
@@ -176,9 +199,16 @@ Full detail: [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) and [`design/token
 
 ## Limits of this phase
 
-These are high-fidelity, static mockups plus one scripted prototype — not the production app.
-There is no backend, authentication, persistence or real speech recognition. Charts use curated
-fixtures. The interactive assistant is deterministic on purpose so the flow can be reviewed quickly.
+The *review site* (`index.html`, `app.html`, `demo.html`) is still the original static design
+prototype. The *working app* (`live.html`) is real, but be clear about what it is not yet:
+
+- No Android package. It is a PWA you install from the browser; the AAB is a later step.
+- No LLM. Dost answers from your own numbers with ~20 hand-written intents — it never invents a
+  record, but it also cannot understand a sentence it has no rule for (it says so).
+- No real push. Reminders are shown when you open the app; background push needs a server.
+- One JSON document. Fine for a shop, not for a chain — a few hundred KB, Drive or this device.
+- Staff roles are per phone, not per login. Real authentication arrives with the backend phase.
+- Billing is not connected. Nothing is metered and nothing expires.
 
 ## Next phase (after sign-off)
 

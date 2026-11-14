@@ -640,3 +640,38 @@
 .lv-welcome__fine { margin: 16px 22px 0; text-align: center; font-size: 10.5px; line-height: 1.5; color: var(--ink-4); }
 
 .app-bar__pill--drive { color: #1c4f80; background: rgba(84, 180, 242, 0.22); }
+
+/* documents */
+.lv-docs { display: flex; flex-direction: column; gap: 8px; }
+.lv-doc { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.lv-doc__thumb { width: 44px; height: 44px; flex: 0 0 auto; border-radius: var(--r-sm); object-fit: cover; background: var(--surface-2); }
+.lv-doc__thumb--file { display: grid; place-items: center; color: var(--ink-3); }
+.lv-doc__body { flex: 1; min-width: 0; }
+.lv-doc__body b { display: block; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-doc__body small { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+.lv-doc__end { display: flex; align-items: center; gap: 6px; }
+.lv-doc__open, .lv-doc__x { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.lv-doc__x { color: var(--danger); }
+
+/* reminder bell */
+.lv-bell { position: relative; }
+.lv-bell__dot {
+  position: absolute; top: -2px; right: -2px;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--danger); color: #fff;
+  font-size: 9px; font-weight: var(--fw-bold); line-height: 1;
+}
+
+/* read aloud under an answer */
+.lv-msg__speak {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 8px; padding: 5px 10px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--ink-2);
+  font: inherit; font-size: 10.5px; font-weight: var(--fw-semi);
+  cursor: pointer;
+}
+.lv-msg__speak .i { width: 12px; height: 12px; }
+.lv-msg__speak:hover { border-color: var(--brand); color: var(--brand-ink); }

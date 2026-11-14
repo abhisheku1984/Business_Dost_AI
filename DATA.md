@@ -26,8 +26,16 @@ new address means exporting first and importing after.
 {
   "version": 1,
   "shop":      { "name": "Sharma Hardware", "owner": "Aarav Sharma", "phone": "", "gstin": "" },
-  "items":     [ { "id", "name", "unit", "rate", "buy", "stock", "low" } ],
+  "items":     [ { "id", "name", "kind", "hsn", "unit", "rate", "buy", "stock", "low" } ],
   "customers": [ { "id", "name", "phone" } ],
+  "suppliers": [ { "id", "name", "phone", "gstin" } ],
+  "purchases": [ { "id", "no", "at", "date", "supplierId", "supplierName",
+                   "lines": [ { "itemId", "name", "unit", "qty", "cost" } ],
+                   "amount", "paid", "paidAmount" } ],
+  "supplierPayments": [ { "id", "supplierId", "amount", "date", "at" } ],
+  "documents": [ { "id", "name", "type", "kind", "size", "at", "ref", "data" } ],
+  "users":     [ { "id", "name", "role" } ],
+  "audit":     [ { "id", "at", "user", "role", "action", "detail" } ],
   "sales":     [ { "id", "no", "date", "at", "customerId", "customerName",
                    "lines": [ { "itemId", "name", "qty", "rate", "unit", "cost" } ],
                    "base", "amount", "tax", "cost", "method", "paid" } ],
@@ -39,9 +47,16 @@ new address means exporting first and importing after.
   "chat":      [ { "role", "text", "at" } ],
   "meta":      { "updatedAt": 1763... },
   "settings":  { "lang": "en-IN", "gst": { "rate": 18, "inclusive": true },
+                 "storage": "local | drive", "speak": false, "notify": false,
+                 "currentUser": "u1", "plan": { "tier": "free" },
                  "sync": { "url": "", "shop": "", "token": "", "lastSync": 0 } }
 }
 ```
+
+`items.kind` is `"product"` or `"service"` — a service has an HSN/SAC code but no stock, and selling
+one never writes a movement. `documents[].data` is the file itself as a data URL: photos are resized to
+1100 px and re-encoded, so a supplier bill lands around 60–120 KB. That is why documents travel with
+the rest of the data instead of living in a separate store.
 
 Every screen is calculated from these lists at render time — the dashboard total is not stored, it is
 summed from `sales`. Stock is a number on the item, and `moves` is the audit trail of how it got

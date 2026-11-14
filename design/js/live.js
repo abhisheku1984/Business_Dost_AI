@@ -89,11 +89,12 @@
   function seed() {
     const today = dayKey();
     const items = [
-      { id: "it1", name: "Cement OPC 53", unit: "bag", rate: 350, buy: 312, stock: 208, low: 40 },
-      { id: "it2", name: "TMT Bar 12mm", unit: "kg", rate: 68, buy: 61, stock: 1160, low: 200 },
-      { id: "it3", name: "Asian Paint 20L", unit: "bucket", rate: 3200, buy: 2860, stock: 3, low: 5 },
-      { id: "it4", name: "PVC Pipe 1 inch", unit: "piece", rate: 120, buy: 98, stock: 86, low: 20 },
-      { id: "it5", name: "Wire 90m coil", unit: "coil", rate: 1450, buy: 1290, stock: 24, low: 6 },
+      { id: "it1", name: "Cement OPC 53", kind: "product", hsn: "2523", unit: "bag", rate: 350, buy: 312, stock: 208, low: 40 },
+      { id: "it2", name: "TMT Bar 12mm", kind: "product", hsn: "7214", unit: "kg", rate: 68, buy: 61, stock: 1160, low: 200 },
+      { id: "it3", name: "Asian Paint 20L", kind: "product", hsn: "3208", unit: "bucket", rate: 3200, buy: 2860, stock: 3, low: 5 },
+      { id: "it4", name: "PVC Pipe 1 inch", kind: "product", hsn: "3917", unit: "piece", rate: 120, buy: 98, stock: 86, low: 20 },
+      { id: "it5", name: "Wire 90m coil", kind: "product", hsn: "8544", unit: "coil", rate: 1450, buy: 1290, stock: 24, low: 6 },
+      { id: "it6", name: "Fitting & installation", kind: "service", hsn: "9954", unit: "hour", rate: 450, buy: 0, stock: 0, low: 0 },
     ];
     const customers = [
       { id: "c1", name: "Ramesh Kumar", phone: "98200 11223" },
@@ -123,6 +124,10 @@
       shop: { name: "Sharma Hardware", owner: "Aarav Sharma" },
       items,
       customers,
+      suppliers: [
+        { id: "sp1", name: "Ultratech Depot", phone: "98450 22110", gstin: "36AABCU9603R1ZM" },
+        { id: "sp2", name: "Sri Balaji Traders", phone: "99080 44551", gstin: "" },
+      ],
       sales: [
         sale(2419, today, "c1", "it1", 12, "UPI", 2),
         sale(2418, today, "c2", "it2", 40, "UPI", 4),
@@ -133,10 +138,15 @@
       expenses: [{ id: "e1", date: today, at: Date.now() - 3 * 36e5, amount: 300, category: "Transport", note: "Tempo to site" }],
       draft: null,
       quotes: [],
+      purchases: [],
+      supplierPayments: [],
+      documents: [],
+      users: [{ id: "u1", name: "Aarav Sharma", role: "owner" }],
+      audit: [],
       chat: [],
       moves: [],
       meta: {},
-      settings: { lang: "en-IN", gst: { rate: 0, inclusive: true } },
+      settings: { lang: "en-IN", gst: { rate: 0, inclusive: true }, currentUser: "u1", notify: false, plan: { tier: "free" } },
     };
   }
 
@@ -153,12 +163,22 @@
       data.draft = data.draft || null;
       data.chat = Array.isArray(data.chat) ? data.chat : [];
       data.quotes = Array.isArray(data.quotes) ? data.quotes : [];
+      data.suppliers = Array.isArray(data.suppliers) ? data.suppliers : [];
+      data.purchases = Array.isArray(data.purchases) ? data.purchases : [];
+      data.supplierPayments = Array.isArray(data.supplierPayments) ? data.supplierPayments : [];
+      data.documents = Array.isArray(data.documents) ? data.documents : [];
+      data.users = Array.isArray(data.users) ? data.users : [];
+      if (!data.users.length) data.users = [{ id: "u1", name: data.shop.owner || "Owner", role: "owner" }];
+      if (!data.settings.currentUser) data.settings.currentUser = data.users[0].id;
+      if (!data.settings.plan) data.settings.plan = { tier: "free" };
+      data.audit = Array.isArray(data.audit) ? data.audit : [];
       data.moves = Array.isArray(data.moves) ? data.moves : [];
 
       /* Data saved before cost prices existed: assume a typical margin rather
          than pretend profit is 100%. The screen says "estimated" when so. */
       let assumed = false;
       data.items.forEach((it) => {
+        if (!it.kind) it.kind = "product";
         if (!Number(it.buy) || Number(it.buy) <= 0) {
           it.buy = Math.round(Number(it.rate) * 0.88);
           if (it.rate) assumed = true;
@@ -223,7 +243,10 @@
     return Math.max(0, owed - paid);
   }
   const totalDue = () => db.customers.reduce((t, c) => t + customerDue(c.id), 0);
-  const lowStock = () => db.items.filter((i) => Number(i.stock) <= Number(i.low));
+  const isService = (item) => Boolean(item) && item.kind === "service";
+  const products = () => db.items.filter((i) => !isService(i));
+  const services = () => db.items.filter((i) => isService(i));
+  const lowStock = () => products().filter((i) => Number(i.stock) <= Number(i.low));
   const stockOf = (id) => (db.items.find((i) => i.id === id) || {}).stock || 0;
   const nextNo = () => db.sales.reduce((m, s) => Math.max(m, s.no), 2415) + 1;
 
@@ -387,7 +410,7 @@
     db.sales.unshift(sale);
     built.forEach((l) => {
       const item = db.items.find((i) => i.id === l.itemId);
-      if (item) {
+      if (item && !isService(item)) {
         item.stock = Math.max(0, Math.round((Number(item.stock) - l.qty) * 100) / 100);
         logMove(item, -l.qty, "sale", `#INV-${sale.no}`);
       }
@@ -562,6 +585,10 @@
     sale: { customerId: db.customers[0] ? db.customers[0].id : "", itemId: db.items[0] ? db.items[0].id : "", qty: 1, rate: db.items[0] ? db.items[0].rate : 0, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" },
     profit: { days: 1 },
     inventory: { tab: "moves" },
+    purchaseCart: [],
+    purchaseSupplier: "",
+    purchaseItem: "",
+    purchasePaid: true,
     cart: [],
     reports: { days: 7 },
     ask: { typing: false },
@@ -768,6 +795,9 @@
               <h1 class="t-title1">Namaste, ${esc(owner)}</h1>
             </div>
             <div class="greeting__actions">
+              <button class="icon-btn icon-btn--plain lv-bell" data-nav="reminders" aria-label="Reminders">
+                ${icon("bell")}${reminders().length ? `<span class="lv-bell__dot">${reminders().length}</span>` : ""}
+              </button>
               <button class="icon-btn icon-btn--plain" data-nav="more" aria-label="Settings and data">${icon("settings")}</button>
               ${avatar(initials(db.shop.owner))}
             </div>
@@ -1023,7 +1053,7 @@
   }
 
   function viewStock() {
-    const rows = db.items
+    const rows = products()
       .map((i) => {
         const low = Number(i.stock) <= Number(i.low);
         return `<button class="lv-row-btn" data-nav="restock:${i.id}">
@@ -1053,6 +1083,19 @@
           <button class="btn btn--primary btn--block" data-act="new-item">${icon("plus")} Add a product</button>
           <p class="lv-hintline" style="margin:8px 0 14px">Anything you sell — cement, paint, a service. It appears in New sale straight away.</p>
           <div class="people">${rows}</div>
+
+          ${services().length ? `<div class="section-label" style="margin-top:18px"><span class="section-label__title">Services</span>
+            <span class="muted" style="font-size:11px">no stock</span></div>
+          <div class="people" style="margin-top:8px">
+            ${services().map((i) => `<button class="lv-row-btn" data-nav="item-edit:${i.id}">
+              <span class="icon-tile">${icon("clock")}</span>
+              <span class="row__body">
+                <span class="lv-row-title">${esc(i.name)}</span>
+                <span class="lv-row-sub">${money(i.rate)} / ${i.unit}${i.hsn ? " · SAC " + esc(i.hsn) : ""}</span>
+              </span>
+              <span class="row__end">${icon("chevron-right")}</span>
+            </button>`).join("")}
+          </div>` : ""}
         </div>
       </div>
       ${tabbar("more")}
@@ -1064,21 +1107,31 @@
 
   function viewItemForm(id) {
     const editing = Boolean(id);
-    const item = editing ? db.items.find((i) => i.id === id) : null;
-    if (editing && !item) return viewStock();
-    const v = item || { name: "", unit: "bag", rate: "", stock: "", low: 10 };
-    const used = editing ? db.sales.some((sale) => sale.lines.some((l) => l.itemId === item.id)) : false;
+    const stored = editing ? db.items.find((i) => i.id === id) : null;
+    if (editing && !stored) return viewStock();
+    const v = { kind: "product", hsn: "", name: "", unit: "bag", rate: "", buy: "", stock: "", low: 10, ...(stored || {}), ...(ui.itemDraft && ui.itemDraft.id === (id || "") ? ui.itemDraft : {}) };
+    const service = v.kind === "service";
+    const used = editing ? db.sales.some((sale) => sale.lines.some((l) => l.itemId === stored.id)) : false;
+
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
-          <h1>${editing ? "Edit product" : "New product"}</h1>
+          <h1>${editing ? "Edit" : "New"} ${service ? "service" : "product"}</h1>
         </div>
         <div class="lv-form">
+          <div class="lv-seg" id="item-kind-seg">
+            <button type="button" data-act="item-kind" data-kind="product" class="${service ? "" : "is-on"}">Product</button>
+            <button type="button" data-act="item-kind" data-kind="service" class="${service ? "is-on" : ""}">Service</button>
+          </div>
+          <p class="lv-hintline" style="text-align:left;margin:-6px 0 12px">${service
+            ? "A service has no stock — you sell hours, visits or jobs."
+            : "A product is something on the shelf — every sale takes stock off."}</p>
+
           <div class="lv-field">
-            <span class="lv-label">Product name</span>
-            <input class="lv-input" id="item-name" placeholder="e.g. Cement OPC 53" value="${esc(v.name)}" />
+            <span class="lv-label">${service ? "Service name" : "Product name"}</span>
+            <input class="lv-input" id="item-name" placeholder="${service ? "e.g. Fitting & installation" : "e.g. Cement OPC 53"}" value="${esc(v.name)}" />
           </div>
           <div class="lv-pair">
             <div class="lv-field">
@@ -1094,23 +1147,31 @@
           </div>
           <div class="lv-pair">
             <div class="lv-field">
-              <span class="lv-label">Cost price</span>
-              <input class="lv-input lv-input--num" id="item-cost" type="number" inputmode="decimal" min="0" placeholder="what you pay" value="${v.buy == null ? "" : v.buy}" />
+              <span class="lv-label">${service ? "Cost (optional)" : "Cost price"}</span>
+              <input class="lv-input lv-input--num" id="item-cost" type="number" inputmode="decimal" min="0" placeholder="${service ? "e.g. travel" : "what you pay"}" value="${v.buy == null ? "" : v.buy}" />
             </div>
+            <div class="lv-field">
+              <span class="lv-label">HSN / SAC</span>
+              <input class="lv-input" id="item-hsn" placeholder="${service ? "9954" : "2523"}" value="${esc(v.hsn || "")}" />
+            </div>
+          </div>
+
+          ${service ? "" : `<div class="lv-pair">
             <div class="lv-field">
               <span class="lv-label">${editing ? "In stock" : "Opening stock"}</span>
               <input class="lv-input lv-input--num" id="item-stock" type="number" inputmode="decimal" min="0" value="${v.stock}" />
             </div>
-          </div>
-          <div class="lv-field">
-            <span class="lv-label">Alert me below ${v.low} ${v.unit} left</span>
-            <input class="lv-input lv-input--num" id="item-low" type="number" inputmode="decimal" min="0" value="${v.low}" />
-          </div>
+            <div class="lv-field">
+              <span class="lv-label">Alert below</span>
+              <input class="lv-input lv-input--num" id="item-low" type="number" inputmode="decimal" min="0" value="${v.low}" />
+            </div>
+          </div>`}
+
           <div class="lv-actions">
-            <button class="btn btn--primary" data-act="save-item" data-id="${editing ? item.id : ""}">${icon("check")} ${editing ? "Save changes" : "Add product"}</button>
+            <button class="btn btn--primary" data-act="save-item" data-id="${editing ? stored.id : ""}">${icon("check")} ${editing ? "Save changes" : `Add ${service ? "service" : "product"}`}</button>
           </div>
-          ${editing && !used ? `<button class="btn btn--ghost" data-act="delete-item" data-id="${item.id}">${icon("trash")} Delete this product</button>` : ""}
-          ${editing && used ? `<p class="lv-hintline">This product is on invoices, so it can't be deleted — set the alert low and stop selling it instead.</p>` : ""}
+          ${editing && !used ? `<button class="btn btn--ghost" data-act="delete-item" data-id="${stored.id}">${icon("trash")} Delete this ${service ? "service" : "product"}</button>` : ""}
+          ${editing && used ? `<p class="lv-hintline">This ${service ? "service" : "product"} is on invoices, so it can't be deleted — change its price or stop selling it instead.</p>` : ""}
           <p class="lv-hintline">Changes apply to new sales only. Past invoices keep the price they were sold at.</p>
         </div>
       </div>
@@ -1253,8 +1314,9 @@
           <div class="lv-field">
             <span class="lv-label">${cart.length ? "Add another item" : "Item"}</span>
             <select class="lv-select" id="sale-item">
-              ${db.items.map((i) => `<option value="${i.id}" ${i.id === s.itemId ? "selected" : ""}>${esc(i.name)} — ${money(i.rate)}/${i.unit} · ${i.stock} left</option>`).join("")}
-              <option value="__new" ${s.itemId === "__new" ? "selected" : ""}>＋ New product…</option>
+              ${products().length ? `<optgroup label="Products">${products().map((i) => `<option value="${i.id}" ${i.id === s.itemId ? "selected" : ""}>${esc(i.name)} — ${money(i.rate)}/${i.unit} · ${i.stock} left</option>`).join("")}</optgroup>` : ""}
+              ${services().length ? `<optgroup label="Services">${services().map((i) => `<option value="${i.id}" ${i.id === s.itemId ? "selected" : ""}>${esc(i.name)} — ${money(i.rate)}/${i.unit}</option>`).join("")}</optgroup>` : ""}
+              <option value="__new" ${s.itemId === "__new" ? "selected" : ""}>＋ New item…</option>
             </select>
           </div>
           ${s.itemId === "__new" ? `<div class="lv-pair">
@@ -1294,7 +1356,11 @@
             <span>Total${tax ? ` <em class="lv-total__tax">incl. ${tax.rate}% GST</em>` : ""}</span>
             <b id="sale-total">${money(total)}</b>
           </div>
-          <p class="lv-hintline" id="sale-stockhint">${s.mode === "quote" ? "Quotations don’t touch stock — they only become a bill when you convert one." : `Stock left after this sale: ${Math.max(0, item.stock - qty)} ${item.unit}${db.items.length > 1 ? " · use “Add another item” for a multi-product bill" : ""}`}</p>
+          <p class="lv-hintline" id="sale-stockhint">${s.mode === "quote"
+            ? "Quotations don’t touch stock — they only become a bill when you convert one."
+            : isService(item)
+              ? "Service — nothing comes off stock."
+              : `Stock left after this sale: ${Math.max(0, item.stock - qty)} ${item.unit}${db.items.length > 1 ? " · use “Add another item” for a multi-product bill" : ""}`}</p>
 
           <div class="lv-actions">
             ${s.mode === "quote"
@@ -1545,6 +1611,8 @@
   /* ------------------------------------------------------------------ */
   /* reports                                                            */
   /* ------------------------------------------------------------------ */
+  const from14 = () => daysAgo(13);
+
   function viewReports() {
     const days = ui.reports.days;
     const st = periodStats(days);
@@ -1623,6 +1691,8 @@
             <div class="lv-metric"><b class="num">${money(stockRetail)}</b><span>Stock at selling</span></div>
             <div class="lv-metric"><b class="num">${money(stockCost)}</b><span>Stock at cost</span></div>
             <div class="lv-metric"><b class="num">${money(due)}</b><span>Udhaar out</span></div>
+            <div class="lv-metric"><b class="num">${money(totalPayable())}</b><span>Payable to suppliers</span></div>
+            <div class="lv-metric"><b class="num">${db.purchases.filter((p) => p.date >= from14()).length}</b><span>Purchases (14d)</span></div>
             <div class="lv-metric"><b class="num">${Number.isFinite(oldest) ? oldest + "d" : "—"}</b><span>Oldest due</span></div>
           </div>
           <p class="lv-hintline">Stock value counts what is on the shelf right now, at cost and at your selling price.</p>
@@ -1662,6 +1732,65 @@
     const chipNav = (label, nav) => ({ label, nav });
     const chipSay = (label, say) => ({ label, say });
 
+    /* ---- Hinglish / Hindi questions get Hindi answers ---- */
+    const hindiMarkers = ["kitni", "kitna", "kitne", "kisko", "kaun", "aaj", "bikri", "beca", "becha",
+      "kamai", "munafa", "kharcha", "maal", "khatam", "udhaar", "udhar", "batao", "bata", "hai kya",
+      "dena hai", "lena hai", "hisaab", "jankari", "sabse"];
+    const isHindi = /[\u0900-\u097F]/.test(q) || hindiMarkers.filter((w) => q.includes(w)).length >= 2;
+    if (isHindi) {
+      const hi = (() => {
+        if (has("namaste", "hello", "नमस्ते", "hi dost") || q.trim() === "hi") {
+          return {
+            text: `नमस्ते ${db.shop.owner.split(" ")[0]} जी। आज ${money(statsFor(dayKey()).total)} की बिक्री हुई, ${money(totalDue())} उधार बाकी है। क्या जानना है?`,
+            chips: [chipSay("किसका उधार?", "किसका उधार बाकी है?"), chipSay("आज का मुनाफ़ा", "आज का मुनाफ़ा कितना है?"), chipNav("स्टॉक", "stock")],
+          };
+        }
+        if (has("udhaar", "udhar", "baki", "bakaya", "उधार", "बाकी", "किसका")) {
+          const debtors = db.customers.map((c) => ({ ...c, due: customerDue(c.id) })).filter((c) => c.due > 0).sort((a, b) => b.due - a.due);
+          if (!debtors.length) return { text: "किसी का उधार बाकी नहीं है — सब हिसाब बराबर है।", chips: [chipNav("ग्राहक", "customers")] };
+          const top = debtors.slice(0, 3).map((c) => `${c.name} ${money(c.due)}`).join(", ");
+          return {
+            text: `${money(debtors.reduce((t, c) => t + c.due, 0))} उधार बाकी है, ${debtors.length} ${debtors.length === 1 ? "ग्राहक का" : "ग्राहकों का"}। ${top}।`,
+            chips: [chipNav("ग्राहक खोलें", "customers"), chipSay("रिमाइंडर बनाओ", "udhaar reminder message")],
+          };
+        }
+        if (has("kamai", "munafa", "profit", "मुनाफ़ा", "कमाई", "फायदा")) {
+          return {
+            text: `${when === "today" ? "आज" : when === "yesterday" ? "कल" : "पिछले " + days + " दिनों"} में ${money(st.net)} का मुनाफ़ा हुआ। बिक्री ${money(st.revenue)}, माल की लागत ${money(st.cost)}, खर्च ${money(st.expenses)}।`,
+            chips: [chipNav("मुनाफ़ा विवरण", "profit"), chipSay("आज का मुनाफ़ा", "आज का मुनाफ़ा कितना?")],
+          };
+        }
+        if (has("kharcha", "खर्च", "expense", "spent")) {
+          const cats = expenseByCategory(days, offset);
+          if (!st.expenses) return { text: `${when === "today" ? "आज" : "इस अवधि"} कोई खर्च दर्ज नहीं है।`, chips: [chipNav("खर्च जोड़ें", "expense")] };
+          return { text: `${money(st.expenses)} का खर्च हुआ। सबसे ज़्यादा ${cats[0].name} — ${money(cats[0].value)}।`, chips: [chipNav("खर्च जोड़ें", "expense")] };
+        }
+        if (has("stock", "maal", "khatam", "माल", "स्टॉक", "खत्म")) {
+          const low = lowStock();
+          if (!low.length) return { text: "सारा माल स्टॉक में है, कुछ खत्म नहीं हो रहा।", chips: [chipNav("स्टॉक", "stock")] };
+          return {
+            text: `${low.length} चीज़ें कम हो रही हैं: ${low.map((i) => `${i.name} (${i.stock} ${i.unit})`).join(", ")}। मैं कम से कम ${low.map((i) => `${Math.max(1, Math.ceil(i.low * 3 - i.stock))} ${i.unit}`).join(", ")} मंगाने की सलाह दूँगा।`,
+            chips: [chipNav("स्टॉक खोलें", "stock"), chipNav("खरीद दर्ज करें", "purchase-new")],
+          };
+        }
+        if (has("supplier", "dukandar", "dena hai", "सप्लायर", "दुकानदार", "देना")) {
+          const payable = totalPayable();
+          return {
+            text: payable ? `सप्लायर्स को ${money(payable)} देना बाकी है, ${db.purchases.filter((p) => !p.paid).length} बिल पेंडिंग हैं।` : "सप्लायर्स का कोई बिल बाकी नहीं है।",
+            chips: [chipNav("सप्लायर", "suppliers"), chipNav("खरीद", "purchases")],
+          };
+        }
+        if (has("bikri", "becha", "sale", "बिक्री", "बेचा", "kitni")) {
+          return {
+            text: `${when === "today" ? "आज" : when === "yesterday" ? "कल" : "पिछले " + days + " दिनों"} में ${money(st.revenue)} की बिक्री हुई, ${st.orders} बिल। औसत बिल ${money(st.orders ? Math.round(st.revenue / st.orders) : 0)}।`,
+            chips: [chipNav("बिक्री देखें", "sales"), chipSay("आज का मुनाफ़ा", "आज का मुनाफ़ा कितना?")],
+          };
+        }
+        return null;
+      })();
+      if (hi) return hi;
+    }
+
     /* hello */
     if (has("hello", "namaste", "hey", "hi dost") || q.trim() === "hi") {
       return {
@@ -1691,6 +1820,17 @@
       return {
         text: `${money(debtors.reduce((t, c) => t + c.due, 0))} is out as udhaar across ${debtors.length} ${debtors.length === 1 ? "customer" : "customers"}. ${top}. ${debtors.length > 1 ? `Biggest is ${debtors[0].name}.` : ""}`,
         chips: [chipNav("Open customers", "customers"), chipSay("Send a reminder", "Give me a reminder message for the biggest due")],
+      };
+    }
+
+    /* payables */
+    if (has("supplier", "payable", "dena hai", "owe them", "purchase bill")) {
+      const payable = totalPayable();
+      const pending = db.purchases.filter((p) => !p.paid);
+      if (!payable) return { text: "Every supplier bill is settled. Nothing to pay right now.", chips: [chipNav("Suppliers", "suppliers")] };
+      return {
+        text: `You owe ${money(payable)} to suppliers across ${pending.length} ${pending.length === 1 ? "bill" : "bills"}. ${pending.slice(0, 3).map((p) => `${p.supplierName} ${money(p.amount - (p.paidAmount || 0))}`).join(", ")}.`,
+        chips: [chipNav("Open suppliers", "suppliers"), chipNav("Purchases", "purchases")],
       };
     }
 
@@ -1803,6 +1943,7 @@
       if (chat) chat.scrollTop = chat.scrollHeight;
       const input = $("#ask-input");
       if (input) input.focus();
+      if (db.settings.speak) speak(a.text);
     });
   }
 
@@ -1834,6 +1975,41 @@
     }
   }
 
+  const speechSupported = () => typeof window !== "undefined" && "speechSynthesis" in window;
+  const speechReady = () => speechSupported() && typeof SpeechSynthesisUtterance !== "undefined";
+
+  function speak(text) {
+    if (!speechReady()) { toast("This browser can't read aloud — the answer is on screen"); return; }
+    const clean = String(text || "")
+      .replace(/₹\s?/g, " rupees ")
+      .replace(/[·•]/g, ", ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!clean) return;
+    try {
+      window.speechSynthesis.cancel();
+      const say = new SpeechSynthesisUtterance(clean);
+      say.lang = db.settings.lang || "en-IN";
+      const voices = window.speechSynthesis.getVoices() || [];
+      const exact = voices.find((v) => v.lang && v.lang.replace("_", "-") === say.lang);
+      const loose = voices.find((v) => v.lang && v.lang.slice(0, 2) === say.lang.slice(0, 2));
+      if (exact || loose) say.voice = exact || loose;
+      say.rate = 0.97;
+      say.pitch = 1;
+      window.speechSynthesis.speak(say);
+    } catch (err) {
+      toast("Couldn't read that aloud");
+    }
+  }
+
+  function speakToggle() {
+    db.settings.speak = !db.settings.speak;
+    if (!db.settings.speak && speechSupported()) window.speechSynthesis.cancel();
+    persist();
+    render();
+    toast(db.settings.speak ? "Answers will be read aloud" : "Read-aloud off");
+  }
+
   function chatBubble(m) {
     const chips = (m.chips || []).length
       ? `<div class="lv-msg__chips">${m.chips.map((c) => `<button data-act="ask-chip" data-q="${esc(c.say || "")}" data-go="${esc(c.nav || "")}">${esc(c.label)}</button>`).join("")}</div>`
@@ -1842,6 +2018,7 @@
         ${m.role === "dost" ? `<span class="lv-msg__avatar">${icon("ai")}</span>` : ""}
         <div class="lv-msg__wrap">
           <div class="lv-msg__body">${esc(m.text).replace(/\n/g, "<br/>")}</div>
+          ${m.role === "dost" ? `<button class="lv-msg__speak" data-act="speak" data-text="${esc(m.text)}" aria-label="Read this aloud">${icon("play")} Read aloud</button>` : ""}
           ${chips}
         </div>
       </div>`;
@@ -1849,16 +2026,26 @@
 
   function viewAsk() {
     if (!Array.isArray(db.chat)) db.chat = [];
-    const seedChips = [
-      { label: "Who owes me?", say: "Who owes me money?" },
-      { label: "Profit today", say: "How much profit did I make today?" },
-      { label: "What's low?", say: "What is running low?" },
-      { label: "Best customer", say: "Who is my best customer this month?" },
-    ];
+    const hindi = (db.settings.lang || "").startsWith("hi");
+    const seedChips = hindi
+      ? [
+          { label: "किसका उधार?", say: "किसका उधार बाकी है?" },
+          { label: "आज का मुनाफ़ा", say: "आज का मुनाफ़ा कितना है?" },
+          { label: "क्या कम है?", say: "कौन सा माल कम है?" },
+          { label: "आज की बिक्री", say: "आज की बिक्री कितनी हुई?" },
+        ]
+      : [
+          { label: "Who owes me?", say: "Who owes me money?" },
+          { label: "Profit today", say: "How much profit did I make today?" },
+          { label: "What's low?", say: "What is running low?" },
+          { label: "Best customer", say: "Who is my best customer this month?" },
+        ];
     const empty = `<div class="lv-msg lv-msg--dost">
         <span class="lv-msg__avatar">${icon("ai")}</span>
         <div class="lv-msg__wrap">
-          <div class="lv-msg__body">Namaste ${esc(db.shop.owner.split(" ")[0])} ji. Ask me anything about your shop — sales, profit, udhaar, stock. I answer from your own books, and nothing leaves this phone.</div>
+          <div class="lv-msg__body">${hindi
+            ? `नमस्ते ${esc(db.shop.owner.split(" ")[0])} जी। अपनी दुकान के बारे में कुछ भी पूछिए — बिक्री, मुनाफ़ा, उधार, स्टॉक। जवाब आपकी अपनी किताबों से, कुछ भी इस फ़ोन से बाहर नहीं जाता।`
+            : `Namaste ${esc(db.shop.owner.split(" ")[0])} ji. Ask me anything about your shop — sales, profit, udhaar, stock. I answer from your own books, and nothing leaves this phone.`}</div>
           <div class="lv-msg__chips">
             ${seedChips.map((c) => `<button data-act="ask-chip" data-q="${esc(c.say)}">${esc(c.label)}</button>`).join("")}
           </div>
@@ -2056,6 +2243,13 @@
               <option value="en-IN" ${db.settings.lang === "en-IN" ? "selected" : ""}>English (India)</option>
               <option value="hi-IN" ${db.settings.lang === "hi-IN" ? "selected" : ""}>हिंदी</option>
             </select>
+          </div>
+          <div class="lv-data-row" style="margin-top:4px">
+            <div>
+              <b>Read answers aloud</b>
+              <small>${speechReady() ? "Dost speaks each answer in " + (db.settings.lang === "hi-IN" ? "Hindi" : "English") : "This browser can't read aloud"}</small>
+            </div>
+            <button class="btn btn--${db.settings.speak ? "primary" : "outline"} btn--sm" data-act="toggle-speak" ${speechReady() ? "" : "disabled"}>${db.settings.speak ? "On" : "Off"}</button>
           </div>
           <div class="lv-actions">
             <button class="btn btn--primary" data-act="save-settings">${icon("check")} Save</button>
@@ -2499,7 +2693,7 @@
             ? (moves.length
               ? `<div class="lv-moves">${moves.map(moveRow).join("")}</div>`
               : `<div class="lv-empty">No movements yet. Sell something, or receive a delivery.</div>`)
-            : `<div class="people">${db.items.map((i) => `<button class="lv-row-btn" data-nav="restock:${i.id}">
+            : `<div class="people">${products().map((i) => `<button class="lv-row-btn" data-nav="restock:${i.id}">
                 <span class="icon-tile ${Number(i.stock) <= Number(i.low) ? "icon-tile--sand" : "icon-tile--brand"}">${icon("box")}</span>
                 <span class="row__body">
                   <span class="lv-row-title">${esc(i.name)}</span>
@@ -2514,6 +2708,632 @@
         </div>
       </div>
       ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* suppliers, purchases, payables                                     */
+  /* ------------------------------------------------------------------ */
+  const nextPurchaseNo = () => db.purchases.reduce((m, p) => Math.max(m, Number(p.no) || 500), 500) + 1;
+  const supplierOwed = (id) => db.purchases
+    .filter((p) => p.supplierId === id)
+    .reduce((t, p) => t + Math.max(0, Number(p.amount) - Number(p.paidAmount || 0)), 0);
+  const totalPayable = () => db.suppliers.reduce((t, s) => t + supplierOwed(s.id), 0);
+
+  function viewSuppliers() {
+    const list = db.suppliers.map((s) => ({ ...s, owed: supplierOwed(s.id) })).sort((a, b) => b.owed - a.owed);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row">
+            <h1 class="t-title1">Suppliers</h1>
+            <button class="btn btn--primary btn--sm" data-act="new-supplier">${icon("plus")} Add</button>
+          </div>
+          <p class="shead__sub t-subhead">Who you buy from, and what you still owe them — the other half of udhaar.</p>
+        </div>
+        <div class="sbody">
+          <div class="lv-cards">
+            <div class="lv-metric"><b class="num">${money(totalPayable())}</b><span>Payable</span></div>
+            <div class="lv-metric"><b class="num">${db.suppliers.length}</b><span>Suppliers</span></div>
+          </div>
+
+          <div class="people" style="margin-top:14px">
+            ${list.length ? list.map((s) => `<button class="lv-row-btn" data-nav="supplier:${s.id}">
+                <span class="avatar avatar--mint" aria-hidden="true">${esc(initials(s.name))}</span>
+                <span class="row__body">
+                  <span class="lv-row-title">${esc(s.name)}</span>
+                  <span class="lv-row-sub">${s.phone || "no phone"}${s.gstin ? " · " + esc(s.gstin) : ""}</span>
+                </span>
+                <span class="row__end">
+                  <span class="lv-row-amount" style="${s.owed ? "" : "color:var(--ink-4)"}">${s.owed ? money(s.owed) : "settled"}</span>
+                </span>
+              </button>`).join("") : `<div class="lv-empty"><b>No suppliers yet.</b><br/>Add the ones you buy cement, paint or stock from.</div>`}
+          </div>
+
+          <div class="lv-actions" style="margin-top:16px">
+            <button class="btn btn--outline" data-act="new-purchase">${icon("truck")} Record a purchase</button>
+          </div>
+        </div>
+      </div>
+      ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewSupplierForm() {
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>New supplier</h1>
+        </div>
+        <div class="lv-form">
+          <div class="lv-field">
+            <span class="lv-label">Name</span>
+            <input class="lv-input" id="sup-name" placeholder="e.g. Ultratech Depot" />
+          </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">Phone</span>
+              <input class="lv-input" id="sup-phone" type="tel" inputmode="tel" placeholder="optional" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">GSTIN</span>
+              <input class="lv-input" id="sup-gstin" placeholder="optional" />
+            </div>
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="save-supplier">${icon("check")} Add supplier</button>
+          </div>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewSupplier(id) {
+    const s = db.suppliers.find((x) => x.id === id);
+    if (!s) return viewSuppliers();
+    const bought = db.purchases.filter((p) => p.supplierId === id).sort((a, b) => b.at - a.at);
+    const owed = supplierOwed(id);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>${esc(s.name)}</h1>
+        </div>
+        <div class="sbody">
+          <section class="lv-metric" style="padding:16px">
+            <span>You owe</span>
+            <b style="font-size:26px;margin-top:4px">${money(owed)}</b>
+            <small style="color:var(--ink-3);font-size:11px;margin-top:4px">${(s.phone || "no phone")}${s.gstin ? " · GSTIN " + esc(s.gstin) : ""}</small>
+          </section>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Purchases</span>
+            <span class="section-label__action" data-act="new-purchase" role="button" tabindex="0">Add</span>
+          </div>
+          <div class="people" style="margin-top:8px">
+            ${bought.length ? bought.map((p) => `<button class="lv-row-btn" data-nav="purchase:${p.id}">
+                <span class="icon-tile ${p.paid ? "icon-tile--brand" : "icon-tile--sand"}">${icon("truck")}</span>
+                <span class="row__body">
+                  <span class="lv-row-title">Bill #${p.no} · ${p.lines.length} ${p.lines.length === 1 ? "item" : "items"}</span>
+                  <span class="lv-row-sub">${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${p.paid ? "paid" : "pending"}</span>
+                </span>
+                <span class="row__end"><span class="lv-row-amount">${money(p.amount)}</span></span>
+              </button>`).join("") : `<div class="lv-empty">Nothing bought yet.</div>`}
+          </div>
+
+          ${owed > 0 ? `<div class="lv-form" style="padding:18px 0 0">
+            <div class="lv-field">
+              <span class="lv-label">Pay this supplier</span>
+              <input class="lv-input lv-input--num" id="sup-pay-amount" type="number" inputmode="decimal" value="${owed}" />
+            </div>
+            <div class="lv-actions">
+              <button class="btn btn--primary" data-act="pay-supplier" data-id="${s.id}">${icon("check")} Record payment</button>
+            </div>
+          </div>` : ""}
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewPurchaseForm() {
+    const cart = Array.isArray(ui.purchaseCart) ? ui.purchaseCart : [];
+    const total = cart.reduce((t, l) => t + l.qty * l.cost, 0);
+    const supplierId = ui.purchaseSupplier || (db.suppliers[0] ? db.suppliers[0].id : "");
+    const itemId = ui.purchaseItem || (products()[0] ? products()[0].id : "");
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Purchase</h1>
+          ${cart.length ? `<span class="pill pill--success">${cart.length} in bill</span>` : ""}
+        </div>
+        <div class="lv-form">
+          <div class="lv-field">
+            <span class="lv-label">Supplier</span>
+            <select class="lv-select" id="pur-supplier">
+              ${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === supplierId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}
+              <option value="__new">＋ New supplier…</option>
+            </select>
+          </div>
+          ${supplierId === "__new" ? `<div class="lv-field"><span class="lv-label">Supplier name</span><input class="lv-input" id="pur-new-supplier" placeholder="Name" /></div>` : ""}
+
+          ${cart.length ? `<div class="lv-bill">
+            ${cart.map((l, idx) => `<div class="lv-bill__row">
+              <div><b>${esc(l.name)}</b><small>${l.qty} × ${money(l.cost)}</small></div>
+              <span class="lv-bill__end">
+                <b class="num">${money(l.qty * l.cost)}</b>
+                <button class="lv-bill__x" data-act="rm-purchase-line" data-idx="${idx}" aria-label="Remove">${icon("close")}</button>
+              </span>
+            </div>`).join("")}
+          </div>` : ""}
+
+          <div class="lv-field">
+            <span class="lv-label">${cart.length ? "Add another item" : "Item"}</span>
+            <select class="lv-select" id="pur-item">
+              ${products().map((i) => `<option value="${i.id}" ${i.id === itemId ? "selected" : ""}>${esc(i.name)} — ${i.stock} ${i.unit} in stock</option>`).join("")}
+            </select>
+          </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">Quantity</span>
+              <input class="lv-input lv-input--num" id="pur-qty" type="number" inputmode="decimal" min="0" value="1" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Cost per unit</span>
+              <input class="lv-input lv-input--num" id="pur-cost" type="number" inputmode="decimal" min="0" value="${(products().find((i) => i.id === itemId) || {}).buy || ""}" />
+            </div>
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Payment</span>
+            <div class="lv-seg" id="pur-paid">
+              <button type="button" data-act="pur-paid" data-paid="1" class="is-on">Paid now</button>
+              <button type="button" data-act="pur-paid" data-paid="0" class="">On credit</button>
+            </div>
+          </div>
+
+          <div class="lv-total"><span>Total</span><b id="pur-total">${money(total)}</b></div>
+          <p class="lv-hintline">Receiving stock updates the shelf and the cost price used for profit.</p>
+
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="save-purchase">${icon("check")} Save purchase${cart.length ? " · " + cart.length + " items" : ""}</button>
+            <button class="btn btn--outline" data-act="add-purchase-line">${icon("plus")} Add another item</button>
+          </div>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewPurchases() {
+    const list = db.purchases.slice().sort((a, b) => b.at - a.at);
+    const pending = list.filter((p) => !p.paid);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row">
+            <h1 class="t-title1">Purchases</h1>
+            <button class="btn btn--primary btn--sm" data-act="new-purchase">${icon("plus")} New</button>
+          </div>
+          <p class="shead__sub t-subhead">Bills from your suppliers. Stock goes up, and what you owe is tracked.</p>
+        </div>
+        <div class="sbody">
+          <div class="lv-cards">
+            <div class="lv-metric"><b class="num">${money(totalPayable())}</b><span>Payable</span></div>
+            <div class="lv-metric"><b class="num">${pending.length}</b><span>Bills pending</span></div>
+          </div>
+          <div class="people" style="margin-top:14px">
+            ${list.length ? list.map((p) => `<button class="lv-row-btn" data-nav="purchase:${p.id}">
+                <span class="icon-tile ${p.paid ? "icon-tile--brand" : "icon-tile--sand"}">${icon("truck")}</span>
+                <span class="row__body">
+                  <span class="lv-row-title">${esc(p.supplierName)} · #${p.no}</span>
+                  <span class="lv-row-sub">${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${p.lines.length} ${p.lines.length === 1 ? "item" : "items"} · ${p.paid ? "paid" : "on credit"}</span>
+                </span>
+                <span class="row__end"><span class="lv-row-amount">${money(p.amount)}</span></span>
+              </button>`).join("") : `<div class="lv-empty"><b>No purchases yet.</b><br/>Record one when stock arrives and the shelf updates itself.</div>`}
+          </div>
+        </div>
+      </div>
+      ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewPurchase(id) {
+    const p = db.purchases.find((x) => x.id === id);
+    if (!p) return viewSuppliers();
+    const due = Math.max(0, p.amount - (p.paidAmount || 0));
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Bill #${p.no}</h1>
+          <span class="pill ${p.paid ? "pill--success" : "pill--warn"}">${p.paid ? "Paid" : "Pending"}</span>
+        </div>
+        <div class="sbody">
+          <section class="invoice-card">
+            <div class="lr-head">
+              <div>
+                <div class="lr-shop">${esc(p.supplierName)}</div>
+                <div class="lr-meta">Purchase #${p.no} · ${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
+              <div class="lr-total">${money(p.amount)}</div>
+            </div>
+            <div class="lr-lines">
+              ${p.lines.map((l) => `<div class="lr-row"><span>${esc(l.name)}<small>${l.qty} × ${money(l.cost)}</small></span><b>${money(l.qty * l.cost)}</b></div>`).join("")}
+            </div>
+            <div class="lr-sum"><span>Total</span><b>${money(p.amount)}</b></div>
+          </section>
+          ${due > 0 ? `<p class="lv-hintline">${money(due)} still payable.</p>` : ""}
+          ${docAttachBlock({ kind: "purchase", id: p.id, label: `Bill #${p.no} · ${p.supplierName}` }, "Supplier bill")}
+          <div class="lv-actions" style="margin-top:14px">
+            ${due > 0 ? `<button class="btn btn--primary" data-act="pay-purchase" data-id="${p.id}">${icon("check")} Mark paid</button>` : ""}
+            <button class="btn btn--danger" data-act="delete-purchase" data-id="${p.id}">${icon("trash")} Delete and take stock back</button>
+          </div>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* documents: bill photos, kept small enough to travel with the data   */
+  /* ------------------------------------------------------------------ */
+  const DOC_MAX_EDGE = 1100;
+  const DOC_QUALITY = 0.62;
+  const DOC_LIMIT_BYTES = 320 * 1024;
+  const DOC_TOTAL_LIMIT = 2 * 1024 * 1024; // keep the whole file inside what a browser will store
+
+  const docBytes = () => db.documents.reduce((t, d) => t + String(d.data || "").length * 0.75, 0);
+
+  function shrinkImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, DOC_MAX_EDGE / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve({
+            data: canvas.toDataURL("image/jpeg", DOC_QUALITY),
+            width: canvas.width,
+            height: canvas.height,
+          });
+        };
+        img.onerror = () => reject(new Error("That image could not be read"));
+        img.src = String(reader.result);
+      };
+      reader.onerror = () => reject(new Error("That file could not be read"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addDocument(file, ref) {
+    if (!file) return;
+    if (docBytes() > DOC_TOTAL_LIMIT) {
+      toast("Documents are full — delete a few before adding more");
+      return;
+    }
+    try {
+      let data;
+      let kind = "file";
+      if (/^image\//.test(file.type)) {
+        const shrunk = await shrinkImage(file);
+        data = shrunk.data;
+        kind = "image";
+      } else {
+        if (file.size > DOC_LIMIT_BYTES) { toast("Keep PDFs under 300 KB — or photograph the page instead"); return; }
+        data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("Could not read that file"));
+          reader.readAsDataURL(file);
+        });
+      }
+      const doc = {
+        id: uid("doc"),
+        name: file.name || "Document",
+        type: file.type || "application/octet-stream",
+        kind,
+        size: Math.round(String(data).length * 0.75),
+        at: Date.now(),
+        ref: ref || null,
+        data,
+      };
+      db.documents.push(doc);
+      persist();
+      toast(`${doc.name} attached`);
+      render();
+      return doc;
+    } catch (err) {
+      toast(err.message || "Could not attach that file");
+    }
+  }
+
+  function docsFor(ref) {
+    if (!ref) return [];
+    return db.documents.filter((d) => d.ref && d.ref.kind === ref.kind && d.ref.id === ref.id);
+  }
+
+  function viewDocuments() {
+    const docs = db.documents.slice().sort((a, b) => b.at - a.at);
+    const used = docBytes();
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row"><h1 class="t-title1">Documents</h1></div>
+          <p class="shead__sub t-subhead">Photos of bills, challans and receipts. Compressed so they travel with your data.</p>
+        </div>
+        <div class="sbody">
+          <label class="btn btn--primary btn--block" style="cursor:pointer">
+            ${icon("camera")} Add a photo or PDF
+            <input id="doc-file" type="file" accept="image/*,application/pdf" capture="environment" hidden />
+          </label>
+          <p class="lv-hintline" style="margin:8px 0 14px">${(used / 1024).toFixed(0)} KB of ${(DOC_TOTAL_LIMIT / 1024 / 1024).toFixed(0)} MB used · images are resized to ${DOC_MAX_EDGE}px</p>
+
+          ${docs.length ? `<div class="lv-docs">
+            ${docs.map((d) => `<div class="lv-doc">
+              ${d.kind === "image"
+                ? `<img class="lv-doc__thumb" src="${d.data}" alt="${esc(d.name)}" />`
+                : `<span class="lv-doc__thumb lv-doc__thumb--file">${icon("download")}</span>`}
+              <div class="lv-doc__body">
+                <b>${esc(d.name)}</b>
+                <small>${new Date(d.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${Math.round(d.size / 1024)} KB${d.ref ? " · " + esc(d.ref.label || "") : ""}</small>
+              </div>
+              <div class="lv-doc__end">
+                <a class="lv-doc__open" href="${d.data}" target="_blank" rel="noopener" download="${esc(d.name)}" aria-label="Open ${esc(d.name)}">${icon("arrow-up-right")}</a>
+                <button class="lv-doc__x" data-act="delete-doc" data-id="${d.id}" aria-label="Delete">${icon("trash")}</button>
+              </div>
+            </div>`).join("")}
+          </div>` : `<div class="lv-empty"><b>No documents yet.</b><br/>Photograph a supplier bill and it stays with the purchase.</div>`}
+        </div>
+      </div>
+      ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
+  function docAttachBlock(ref, label) {
+    const list = docsFor(ref);
+    return `<div class="section-label" style="margin-top:18px"><span class="section-label__title">${esc(label)}</span>
+      <span class="muted" style="font-size:11px">${list.length ? list.length + " attached" : "none"}</span></div>
+      <div class="people" style="margin-top:8px">
+        ${list.map((d) => `<a class="lv-data-row" href="${d.data}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+          <div><b>${esc(d.name)}</b><small>${Math.round(d.size / 1024)} KB · ${new Date(d.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</small></div>
+          ${icon("arrow-up-right")}
+        </a>`).join("")}
+      </div>
+      <label class="btn btn--outline btn--block" style="cursor:pointer;margin-top:10px">
+        ${icon("camera")} ${list.length ? "Add another" : "Attach a photo"}
+        <input class="doc-file-ref" type="file" accept="image/*,application/pdf" capture="environment" hidden
+          data-kind="${ref.kind}" data-id="${ref.id}" data-label="${esc(ref.label || "")}" />
+      </label>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* reminders: the things a shopkeeper should not have to remember      */
+  /* ------------------------------------------------------------------ */
+  function reminders() {
+    const out = [];
+    const daysSince = (ts) => Math.floor((Date.now() - ts) / 864e5);
+
+    db.customers.forEach((c) => {
+      const due = customerDue(c.id);
+      if (due <= 0) return;
+      const open = db.sales.filter((x) => x.customerId === c.id && x.method === "Udhaar").sort((a, b) => a.date.localeCompare(b.date))[0];
+      const age = open ? daysSince(new Date(open.date + "T12:00:00").getTime()) : 0;
+      if (age >= 7) out.push({ kind: "udhaar", title: `${c.name} owes ${money(due)}`, detail: `${age} days old`, nav: `payment:${c.id}` });
+    });
+
+    lowStock().forEach((i) => {
+      out.push({ kind: "stock", title: `${i.name} is low`, detail: `${i.stock} ${i.unit} left · order ${Math.max(1, Math.ceil(i.low * 3 - i.stock))}`, nav: `restock:${i.id}` });
+    });
+
+    db.purchases.filter((p) => !p.paid).forEach((p) => {
+      const due = Math.max(0, p.amount - (p.paidAmount || 0));
+      if (!due) return;
+      out.push({ kind: "payable", title: `Pay ${p.supplierName} ${money(due)}`, detail: `Bill #${p.no} · ${daysSince(p.at)} days`, nav: `purchase:${p.id}` });
+    });
+
+    db.quotes.filter((q) => (q.status || "open") === "open" && daysSince(q.at) >= 5).forEach((q) => {
+      out.push({ kind: "quote", title: `Follow up Q-${q.no}`, detail: `${q.customerName} · ${daysSince(q.at)} days`, nav: `quote:${q.id}` });
+    });
+
+    return out;
+  }
+
+  const ALERT_ICON = { udhaar: "clock", stock: "box", payable: "truck", quote: "sales" };
+
+  function viewReminders() {
+    const list = reminders();
+    const notifyOn = Boolean(db.settings.notify) && typeof Notification !== "undefined" && Notification.permission === "granted";
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Reminders</h1>
+        </div>
+        <div class="sbody">
+          ${list.length ? `<div class="people">${list.map((r) => `<button class="lv-row-btn" data-nav="${r.nav}">
+              <span class="icon-tile ${r.kind === "payable" ? "icon-tile--sand" : "icon-tile--brand"}">${icon(ALERT_ICON[r.kind] || "bell")}</span>
+              <span class="row__body">
+                <span class="lv-row-title">${esc(r.title)}</span>
+                <span class="lv-row-sub">${esc(r.detail)}</span>
+              </span>
+              <span class="row__end">${icon("chevron-right")}</span>
+            </button>`).join("")}</div>`
+            : `<div class="lv-empty"><b>Nothing needs you right now.</b><br/>No old udhaar, no low stock, no pending supplier bills.</div>`}
+
+          <div class="section-label" style="margin-top:20px"><span class="section-label__title">Notifications</span></div>
+          <div class="people" style="margin-top:8px">
+            <div class="lv-data-row">
+              <div>
+                <b>${notifyOn ? "Device notifications on" : "Device notifications off"}</b>
+                <small>${typeof Notification === "undefined" ? "This browser can't show notifications" : "Shown when you open the app — a real push needs a server"}</small>
+              </div>
+              <button class="btn btn--outline btn--sm" data-act="notify-toggle" ${typeof Notification === "undefined" ? "disabled" : ""}>${notifyOn ? "Turn off" : "Turn on"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function notifySummary() {
+    if (!db.settings.notify) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (sessionStorage.getItem("bd-notified") === "1") return;
+    const list = reminders();
+    if (!list.length) return;
+    try {
+      new Notification("Business Dost", {
+        body: list.slice(0, 3).map((r) => r.title).join(" · "),
+        tag: "bd-reminders",
+      });
+      sessionStorage.setItem("bd-notified", "1");
+    } catch (e) { /* some browsers need a service worker; ignore */ }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* people who use this phone, and what they are allowed to do          */
+  /* ------------------------------------------------------------------ */
+  const currentUser = () => db.users.find((u) => u.id === (db.settings && db.settings.currentUser)) || db.users[0] || { id: "", name: db.shop.owner, role: "owner" };
+  const isStaff = () => currentUser().role === "staff";
+
+  /* what a staff member may not do — money, settings and deletions stay with the owner */
+  const STAFF_BLOCKED_ROUTES = ["settings", "users", "profit", "reports", "audit", "plan", "suppliers", "purchases", "purchase", "purchase-new", "inventory"];
+  const STAFF_BLOCKED_ACTIONS = [
+    "save-settings", "save-item", "delete-item", "delete-sale", "delete-quote", "delete-purchase",
+    "new-purchase", "pay-supplier", "pay-purchase", "save-supplier", "save-purchase",
+    "export", "reset", "sync-save", "sync-now", "drive-connect", "drive-disconnect", "drive-save",
+    "save-client-id", "adjust-stock", "restock-save", "delete-doc",
+  ];
+
+  function allowed(dest) {
+    if (!isStaff()) return true;
+    const [base] = String(dest).split(":");
+    if (STAFF_BLOCKED_ROUTES.includes(base)) return false;
+    if (STAFF_BLOCKED_ACTIONS.includes(dest)) return false;
+    return true;
+  }
+
+  function logAct(action, detail) {
+    if (!Array.isArray(db.audit)) db.audit = [];
+    const user = currentUser();
+    db.audit.unshift({ id: uid("a"), at: Date.now(), user: user.name, role: user.role, action, detail: detail || "" });
+    if (db.audit.length > 300) db.audit = db.audit.slice(0, 300);
+  }
+
+  function viewUsers() {
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>People</h1>
+        </div>
+        <div class="sbody">
+          <p class="lv-hintline" style="text-align:left;margin:0 0 12px">Everyone who uses this phone. Staff can sell, add customers and record expenses — but not see profit, change settings, delete invoices or touch suppliers.</p>
+          <div class="people">
+            ${db.users.map((u) => `<div class="lv-data-row">
+              <div>
+                <b>${esc(u.name)} ${u.id === currentUser().id ? `<span class="pill pill--success" style="margin-left:6px">using now</span>` : ""}</b>
+                <small>${u.role === "owner" ? "Owner — full access" : "Staff — selling only"}</small>
+              </div>
+              ${u.id === currentUser().id ? "" : `<button class="btn btn--ghost btn--sm" data-act="set-user" data-id="${u.id}">Switch</button>`}
+            </div>`).join("")}
+          </div>
+
+          <div class="section-label" style="margin-top:20px"><span class="section-label__title">Add someone</span></div>
+          <div class="lv-pair" style="margin-top:8px">
+            <div class="lv-field">
+              <span class="lv-label">Name</span>
+              <input class="lv-input" id="user-name" placeholder="e.g. Suresh (munshi)" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Role</span>
+              <select class="lv-select" id="user-role">
+                <option value="staff">Staff</option>
+                <option value="owner">Owner</option>
+              </select>
+            </div>
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="add-user">${icon("user-plus")} Add person</button>
+          </div>
+          ${db.users.length > 1 ? `<button class="btn btn--ghost" data-act="delete-user" data-id="${currentUser().id}" style="margin-top:8px">Remove me from this phone</button>` : ""}
+          <p class="lv-hintline">No password is asked: this is a shared shop phone. Real per-person logins arrive with the backend phase.</p>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewAudit() {
+    const rows = db.audit.slice(0, 60);
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Activity</h1>
+        </div>
+        <div class="sbody">
+          ${rows.length ? `<div class="lv-moves">${rows.map((a) => `<div class="lv-move">
+              <div class="lv-move__main">
+                <b>${esc(a.action)}</b>
+                <small>${esc(a.detail || "")}</small>
+                <small class="lv-move__when">${esc(a.user)} · ${new Date(a.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${clock(a.at)}</small>
+              </div>
+            </div>`).join("")}</div>` : `<div class="lv-empty">Nothing recorded yet.</div>`}
+          <p class="lv-hintline">Every sale, payment, purchase and settings change is written here with who did it.</p>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  function viewPlan() {
+    const plan = (db.settings && db.settings.plan) || { tier: "free" };
+    const pro = plan.tier === "pro";
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Plan</h1>
+        </div>
+        <div class="sbody">
+          <section class="lv-profit" style="margin-bottom:14px">
+            <div class="lv-profit__label">Current plan</div>
+            <div class="lv-profit__value" style="font-size:26px">${pro ? "Pro" : "Free"}</div>
+            <div class="lv-profit__sub">Everything in this build works on Free — no invoice limit, no feature locked.</div>
+          </section>
+
+          <div class="people">
+            <div class="lv-data-row"><div><b>Free</b><small>One shop · one phone · unlimited sales, stock, udhaar</small></div><span class="pill">now</span></div>
+            <div class="lv-data-row"><div><b>Pro</b><small>Planned: multiple shops, staff logins, Excel export, WhatsApp reminders</small></div><span class="pill">soon</span></div>
+          </div>
+
+          <div class="lv-note" style="margin-top:14px">${icon("info")} <span>Billing is not connected yet. When the app ships on the Play Store, Pro is bought through Google Play Billing and validated on a small server — that server stores a subscription status, never your business data.</span></div>
+          <p class="lv-hintline">Nothing in this build is metered or expiring. If a Pro feature ships, Free keeps everything you already have.</p>
+        </div>
+      </div>
       ${indicator()}
     </div>`;
   }
@@ -2534,6 +3354,30 @@
             <a class="lv-data-row lv-data-row--link" data-nav="profit">
               <div><b>Profit</b><small>What you actually made, after cost and expenses</small></div>
               <span class="pill pill--success">${money(periodStats(1).net)}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="suppliers">
+              <div><b>Suppliers &amp; purchases</b><small>${money(totalPayable())} payable to ${db.suppliers.length} ${db.suppliers.length === 1 ? "supplier" : "suppliers"}</small></div>
+              ${icon("chevron-right")}
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="purchases">
+              <div><b>Purchase bills</b><small>Stock in, what you owe, what is paid</small></div>
+              <span class="pill">${db.purchases.length}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="users">
+              <div><b>People</b><small>${db.users.length} ${db.users.length === 1 ? "person" : "people"} · you are ${esc(currentUser().name)} (${currentUser().role})</small></div>
+              ${icon("chevron-right")}
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="audit">
+              <div><b>Activity</b><small>Who did what — every sale, payment and change</small></div>
+              <span class="pill">${db.audit.length}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="plan">
+              <div><b>Plan</b><small>${((db.settings.plan || {}).tier === "pro" ? "Pro" : "Free")} · billing arrives with the Play Store</small></div>
+              ${icon("chevron-right")}
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="documents">
+              <div><b>Documents</b><small>${db.documents.length ? db.documents.length + " attached · " + (docBytes() / 1024).toFixed(0) + " KB" : "Bill photos and receipts"}</small></div>
+              ${icon("chevron-right")}
             </a>
             <a class="lv-data-row lv-data-row--link" data-nav="inventory">
               <div><b>Inventory</b><small>Stock on the shelf and every movement behind it</small></div>
@@ -2633,6 +3477,17 @@
     else if (base === "payment") html = viewPayment(id);
     else if (base === "inventory") html = viewInventory();
     else if (base === "welcome") html = viewWelcome();
+    else if (base === "documents") html = viewDocuments();
+    else if (base === "reminders") html = viewReminders();
+    else if (base === "users") html = viewUsers();
+    else if (base === "audit") html = viewAudit();
+    else if (base === "plan") html = viewPlan();
+    else if (base === "suppliers") html = viewSuppliers();
+    else if (base === "supplier-new") html = viewSupplierForm();
+    else if (base === "supplier") html = viewSupplier(id);
+    else if (base === "purchases") html = viewPurchases();
+    else if (base === "purchase-new") html = viewPurchaseForm();
+    else if (base === "purchase") html = viewPurchase(id);
     else if (base === "sale-new") html = viewNewSale();
     else if (base === "expense") html = viewExpense();
     else if (base === "voice") html = viewVoice();
@@ -2674,6 +3529,21 @@
   /* ------------------------------------------------------------------ */
   /* actions                                                            */
   /* ------------------------------------------------------------------ */
+  function readItemForm() {
+    const val = (sel) => { const el = $(sel); return el ? el.value : ""; };
+    return {
+      id: ($('[data-act="save-item"]') || {}).dataset ? (($('[data-act="save-item"]') || {}).dataset.id || "") : "",
+      kind: ($("#item-kind-seg .is-on") || {}).textContent ? $(("#item-kind-seg .is-on")).textContent.trim().toLowerCase() : "product",
+      name: val("#item-name"),
+      unit: val("#item-unit") || "piece",
+      rate: val("#item-rate"),
+      buy: val("#item-cost"),
+      hsn: val("#item-hsn"),
+      stock: val("#item-stock"),
+      low: val("#item-low"),
+    };
+  }
+
   function readSaleForm() {
     const s = ui.sale;
     const c = $("#sale-customer");
@@ -2714,7 +3584,10 @@
     }
     const item = db.items.find((i) => i.id === s.itemId);
     const hint = $("#sale-stockhint");
-    if (hint && item) {
+    if (hint && item && isService(item)) {
+      hint.textContent = "Service — nothing comes off stock.";
+      hint.style.color = "";
+    } else if (hint && item) {
       const left = Math.round((item.stock - (Number(s.qty) || 0)) * 100) / 100;
       hint.textContent = `Stock left after this sale: ${left > 0 ? left : 0} ${item.unit}`;
       hint.style.color = left < 0 ? "#b4342a" : "";
@@ -2787,6 +3660,7 @@
       });
       ui.cart = [];
       ui.sale = blankSale();
+      logAct("Sale saved", `#INV-${sale.no} · ${money(sale.amount)}`);
       route(`sale:${sale.id}`);
       toast(`Saved · ${money(sale.amount)} · #INV-${sale.no}`);
     } catch (err) {
@@ -2911,14 +3785,18 @@
   /* ------------------------------------------------------------------ */
   /* events                                                             */
   /* ------------------------------------------------------------------ */
-  document.addEventListener("click", (event) => {
+  const permissionGranted = (perm) => perm === "granted" || (typeof Notification !== "undefined" && Notification.permission === "granted");
+
+  document.addEventListener("click", async (event) => {
     const t = event.target instanceof Element ? event.target : null;
     if (!t) return;
 
     const nav = t.closest("[data-nav]");
     if (nav) {
       event.preventDefault();
-      go(nav.getAttribute("data-nav"));
+      const dest = nav.getAttribute("data-nav");
+      if (!allowed(dest)) { toast("Owner only — ask the shop owner"); return; }
+      go(dest);
       return;
     }
 
@@ -2945,6 +3823,7 @@
     if (!act) return;
     const name = act.getAttribute("data-act");
     const id = act.getAttribute("data-id");
+    if (!allowed(name)) { event.preventDefault(); toast("Owner only — ask the shop owner"); return; }
 
     switch (name) {
       case "profit-days":
@@ -2998,6 +3877,7 @@
         const gstMode = (($("#set-gstmode") || {}).value) || "in";
         db.settings.gst = { rate: gstRate, inclusive: gstMode !== "ex" };
         persist();
+        logAct("Settings changed", db.shop.name);
         go("more");
         toast("Shop details saved");
         break;
@@ -3083,6 +3963,7 @@
         break;
       case "back":
         event.preventDefault();
+        ui.itemDraft = null;
         go(homeFor(ui.route));
         break;
       case "newsale":
@@ -3124,12 +4005,13 @@
         db.sales = db.sales.filter((s) => s.id !== id);
         sale.lines.forEach((l) => {
           const item = db.items.find((i) => i.id === l.itemId);
-          if (item) {
+          if (item && !isService(item)) {
             item.stock = Math.round((Number(item.stock) + Number(l.qty)) * 100) / 100;
             logMove(item, l.qty, "return", `#INV-${sale.no} deleted`);
           }
         });
         persist();
+        logAct("Sale deleted", `#INV-${sale.no} · ${money(sale.amount)}`);
         go("sales");
         toast("Sale deleted · stock restored");
         break;
@@ -3263,6 +4145,266 @@
         render();
         break;
       }
+      case "speak": {
+        event.preventDefault();
+        speak(act.getAttribute("data-text") || "");
+        break;
+      }
+      case "toggle-speak": {
+        event.preventDefault();
+        speakToggle();
+        break;
+      }
+      case "add-user": {
+        event.preventDefault();
+        const name = (($("#user-name") || {}).value || "").trim();
+        const role = (($("#user-role") || {}).value) === "owner" ? "owner" : "staff";
+        if (!name) { toast("Give this person a name"); break; }
+        const created = { id: uid("u"), name: titleCase(name), role };
+        db.users.push(created);
+        logAct("Added a person", `${created.name} · ${role}`);
+        persist();
+        render();
+        toast(`${created.name} added as ${role}`);
+        break;
+      }
+      case "set-user": {
+        event.preventDefault();
+        const user = db.users.find((u) => u.id === id);
+        if (!user) break;
+        db.settings.currentUser = user.id;
+        persist();
+        go("home");
+        toast(`Now using this phone as ${user.name}`);
+        break;
+      }
+      case "delete-user": {
+        event.preventDefault();
+        const user = db.users.find((u) => u.id === id);
+        if (!user || db.users.length <= 1) { toast("At least one person must stay"); break; }
+        if (!window.confirm(`Remove ${user.name} from this phone?`)) break;
+        db.users = db.users.filter((u) => u.id !== id);
+        db.settings.currentUser = db.users[0].id;
+        logAct("Removed a person", user.name);
+        persist();
+        go("users");
+        toast("Removed");
+        break;
+      }
+      case "notify-toggle": {
+        event.preventDefault();
+        if (typeof Notification === "undefined") { toast("This browser can't show notifications"); break; }
+        if (db.settings.notify) {
+          db.settings.notify = false;
+          persist();
+          render();
+          toast("Notifications off");
+          break;
+        }
+        const perm = await Notification.requestPermission?.();
+        if (permissionGranted(perm)) {
+          db.settings.notify = true;
+          persist();
+          render();
+          notifySummary();
+          toast("On — you'll see a reminder when the app opens");
+        } else {
+          toast("Notifications were blocked in the browser");
+        }
+        break;
+      }
+      case "delete-doc": {
+        event.preventDefault();
+        const doc = db.documents.find((d) => d.id === id);
+        if (!doc) break;
+        if (!window.confirm(`Delete ${doc.name}?`)) break;
+        db.documents = db.documents.filter((d) => d.id !== id);
+        persist();
+        render();
+        toast("Document deleted");
+        break;
+      }
+      case "new-supplier":
+        event.preventDefault();
+        go("supplier-new");
+        break;
+      case "save-supplier": {
+        event.preventDefault();
+        const name = (($("#sup-name") || {}).value || "").trim();
+        if (!name) { toast("Give the supplier a name"); break; }
+        const created = {
+          id: uid("sp"),
+          name: titleCase(name),
+          phone: (($("#sup-phone") || {}).value || "").trim(),
+          gstin: (($("#sup-gstin") || {}).value || "").trim(),
+        };
+        db.suppliers.push(created);
+        persist();
+        go(`supplier:${created.id}`);
+        toast(`${created.name} added`);
+        break;
+      }
+      case "new-purchase":
+        event.preventDefault();
+        ui.purchaseCart = [];
+        ui.purchasePaid = true;
+        ui.purchaseSupplier = db.suppliers[0] ? db.suppliers[0].id : "";
+        go("purchase-new");
+        break;
+      case "pur-paid": {
+        event.preventDefault();
+        ui.purchasePaid = act.getAttribute("data-paid") !== "0";
+        const group = act.parentElement;
+        [...group.querySelectorAll("[data-act='pur-paid']")].forEach((b) => b.classList.toggle("is-on", b === act));
+        break;
+      }
+      case "add-purchase-line": {
+        event.preventDefault();
+        let supplierId = (($("#pur-supplier") || {}).value) || ui.purchaseSupplier;
+        if (supplierId === "__new") {
+          const name = (($("#pur-new-supplier") || {}).value || "").trim();
+          if (!name) { toast("Name the new supplier first"); break; }
+          const created = { id: uid("sp"), name: titleCase(name), phone: "", gstin: "" };
+          db.suppliers.push(created);
+          supplierId = created.id;
+          persist();
+        }
+        ui.purchaseSupplier = supplierId;
+        const itemId = (($("#pur-item") || {}).value) || ui.purchaseItem;
+        const item = db.items.find((i) => i.id === itemId);
+        const qty = num(($("#pur-qty") || {}).value);
+        const cost = num(($("#pur-cost") || {}).value);
+        if (!item || qty <= 0) { toast("Enter the quantity that arrived"); break; }
+        if (!Array.isArray(ui.purchaseCart)) ui.purchaseCart = [];
+        ui.purchaseCart.push({ itemId: item.id, name: item.name, unit: item.unit, qty, cost: cost || Number(item.buy) || 0 });
+        ui.purchaseItem = item.id;
+        render();
+        toast(`${item.name} added to the purchase`);
+        break;
+      }
+      case "rm-purchase-line": {
+        event.preventDefault();
+        const idx = Number(act.getAttribute("data-idx"));
+        if (Array.isArray(ui.purchaseCart) && idx >= 0) ui.purchaseCart.splice(idx, 1);
+        render();
+        break;
+      }
+      case "save-purchase": {
+        event.preventDefault();
+        let supplierId = (($("#pur-supplier") || {}).value) || ui.purchaseSupplier;
+        let supplierName = "";
+        if (supplierId === "__new") {
+          const name = (($("#pur-new-supplier") || {}).value || "").trim();
+          if (!name) { toast("Name the new supplier first"); break; }
+          const created = { id: uid("sp"), name: titleCase(name), phone: "", gstin: "" };
+          db.suppliers.push(created);
+          supplierId = created.id;
+          supplierName = created.name;
+        }
+        const supplier = db.suppliers.find((x) => x.id === supplierId);
+        if (!supplier) { toast("Pick a supplier first"); break; }
+
+        const lines = (Array.isArray(ui.purchaseCart) ? ui.purchaseCart : []).map((l) => ({ ...l }));
+        const itemId = (($("#pur-item") || {}).value) || ui.purchaseItem;
+        const qty = num(($("#pur-qty") || {}).value);
+        const cost = num(($("#pur-cost") || {}).value);
+        const item = db.items.find((i) => i.id === itemId);
+        if (qty > 0 && item) lines.push({ itemId: item.id, name: item.name, unit: item.unit, qty, cost: cost || Number(item.buy) || 0 });
+        if (!lines.length) { toast("Add at least one item"); break; }
+
+        const amount = Math.round(lines.reduce((t, l) => t + l.qty * l.cost, 0));
+        const paid = ui.purchasePaid !== false;
+        const purchase = {
+          id: uid("pu"),
+          no: nextPurchaseNo(),
+          at: Date.now(),
+          date: dayKey(),
+          supplierId: supplier.id,
+          supplierName: supplier.name,
+          lines,
+          amount,
+          paid,
+          paidAmount: paid ? amount : 0,
+        };
+        db.purchases.unshift(purchase);
+
+        lines.forEach((l) => {
+          const it = db.items.find((i) => i.id === l.itemId);
+          if (!it) return;
+          it.stock = Math.round((Number(it.stock) + Number(l.qty)) * 100) / 100;
+          if (l.cost > 0) it.buy = l.cost;
+          logMove(it, l.qty, "purchase", `#PUR-${purchase.no}`);
+        });
+
+        ui.purchaseCart = [];
+        persist();
+        logAct("Purchase saved", `#PUR-${purchase.no} · ${money(amount)} · ${supplier.name}`);
+        route(`purchase:${purchase.id}`);
+        toast(`Purchase #${purchase.no} saved · stock updated`);
+        break;
+      }
+      case "pay-supplier": {
+        event.preventDefault();
+        const supplier = db.suppliers.find((x) => x.id === id);
+        const amount = num(($("#sup-pay-amount") || {}).value);
+        const owed = supplierOwed(id);
+        if (!supplier || amount <= 0) { toast("Enter the amount you paid"); break; }
+        const pay = Math.min(amount, owed);
+        let left = pay;
+        db.purchases
+          .filter((p) => p.supplierId === id && !p.paid)
+          .sort((a, b) => a.at - b.at)
+          .forEach((p) => {
+            const due = Math.max(0, p.amount - (p.paidAmount || 0));
+            const apply = Math.min(due, left);
+            p.paidAmount = Math.round((Number(p.paidAmount || 0) + apply) * 100) / 100;
+            p.paid = p.paidAmount >= p.amount - 0.5;
+            left -= apply;
+          });
+        db.supplierPayments.push({ id: uid("spp"), supplierId: id, amount: pay, at: Date.now(), date: dayKey() });
+        persist();
+        render();
+        toast(`Paid ${money(pay)} to ${supplier.name}`);
+        break;
+      }
+      case "pay-purchase": {
+        event.preventDefault();
+        const p = db.purchases.find((x) => x.id === id);
+        if (!p) break;
+        p.paid = true;
+        p.paidAmount = p.amount;
+        db.supplierPayments.push({ id: uid("spp"), supplierId: p.supplierId, amount: p.amount, at: Date.now(), date: dayKey() });
+        persist();
+        render();
+        toast("Marked paid");
+        break;
+      }
+      case "delete-purchase": {
+        event.preventDefault();
+        const p = db.purchases.find((x) => x.id === id);
+        if (!p) break;
+        if (!window.confirm(`Delete purchase #${p.no}? The stock it added comes back off the shelf.`)) break;
+        p.lines.forEach((l) => {
+          const it = db.items.find((i) => i.id === l.itemId);
+          if (it) {
+            it.stock = Math.max(0, Math.round((Number(it.stock) - Number(l.qty)) * 100) / 100);
+            logMove(it, -l.qty, "adjust", `#PUR-${p.no} deleted`);
+          }
+        });
+        db.purchases = db.purchases.filter((x) => x.id !== id);
+        persist();
+        go("purchases");
+        toast("Purchase deleted · stock corrected");
+        break;
+      }
+      case "item-kind": {
+        event.preventDefault();
+        const draft = readItemForm();
+        draft.kind = act.getAttribute("data-kind") === "service" ? "service" : "product";
+        ui.itemDraft = draft;
+        render();
+        break;
+      }
       case "new-item":
         event.preventDefault();
         go("item-new");
@@ -3273,29 +4415,46 @@
         break;
       case "save-item": {
         event.preventDefault();
-        const name = (($("#item-name") || {}).value || "").trim();
-        const unit = (($("#item-unit") || {}).value) || "piece";
-        const rate = num(($("#item-rate") || {}).value);
-        const stock = num(($("#item-stock") || {}).value);
-        const low = num(($("#item-low") || {}).value);
-        const buy = num(($("#item-cost") || {}).value);
-        if (!name) { toast("Give the product a name"); break; }
+        const form = readItemForm();
+        const name = String(form.name || "").trim();
+        const unit = form.unit || "piece";
+        const kind = form.kind === "service" ? "service" : "product";
+        const hsn = String(form.hsn || "").trim();
+        const rate = num(form.rate);
+        const stock = kind === "service" ? 0 : num(form.stock);
+        const low = kind === "service" ? 0 : num(form.low);
+        const buy = num(form.buy);
+        if (!name) { toast(`Give the ${kind} a name`); break; }
         if (id) {
           const item = db.items.find((i) => i.id === id);
           if (!item) break;
           item.name = titleCase(name);
           item.unit = unit;
+          item.kind = kind;
+          item.hsn = hsn;
           item.rate = rate || item.rate;
           if (buy > 0) item.buy = buy;
           item.stock = stock;
           item.low = low;
+          ui.itemDraft = null;
           persist();
           go("stock");
           toast(`${item.name} updated`);
         } else {
-          const item = { id: uid("it"), name: titleCase(name), unit, rate, buy: buy || Math.round(rate * 0.88), stock, low: low || 10 };
+          const item = {
+            id: uid("it"),
+            name: titleCase(name),
+            kind,
+            hsn,
+            unit,
+            rate,
+            buy: buy || (kind === "service" ? 0 : Math.round(rate * 0.88)),
+            stock,
+            low,
+          };
           db.items.push(item);
-          logMove(item, stock, "open", "Opening stock");
+          if (kind !== "service") logMove(item, stock, "open", "Opening stock");
+          ui.itemDraft = null;
           persist();
           go("stock");
           toast(`${item.name} added to your catalogue`);
@@ -3333,6 +4492,7 @@
       case "restock-save": {
         event.preventDefault();
         const item = db.items.find((i) => i.id === id);
+        if (isService(item)) { toast("That's a service — it has no stock"); break; }
         const add = num(($("#stock-add") || {}).value);
         const cost = num(($("#stock-rate") || {}).value);
         const sell = num(($("#stock-sell") || {}).value);
@@ -3363,6 +4523,7 @@
           at: Date.now(),
         });
         persist();
+        logAct("Payment received", `${money(amount)} from ${(db.customers.find((c) => c.id === id) || {}).name || "customer"}`);
         go("payments");
         toast(`Payment recorded · ${money(amount)}`);
         break;
@@ -3438,6 +4599,8 @@
     return ["sales", "sale"].includes(base) ? "sales"
       : ["customers", "customer", "customer-new"].includes(base) ? "customers"
       : ["stock", "restock", "item-new", "item-edit"].includes(base) ? "stock"
+      : ["suppliers", "supplier", "supplier-new"].includes(base) ? "suppliers"
+      : ["purchases", "purchase", "purchase-new"].includes(base) ? "purchases"
       : "home";
   }
 
@@ -3480,6 +4643,11 @@
       if (c) c.value = t.value;
     }
     if (t.id === "import-file" && t.files && t.files[0]) importJson(t.files[0]);
+    if (t.id === "doc-file" && t.files && t.files[0]) addDocument(t.files[0], null);
+    if (t.classList && t.classList.contains("doc-file-ref") && t.files && t.files[0]) {
+      const ref = { kind: t.dataset.kind, id: t.dataset.id, label: t.dataset.label || "" };
+      addDocument(t.files[0], ref);
+    }
     if (t.id === "shop-name" && t.value.trim()) {
       db.shop.name = t.value.trim();
       persist();
@@ -3573,6 +4741,8 @@
       }
     }).catch(() => { /* offline: local copy keeps working */ });
   }
+
+  setTimeout(notifySummary, 1200);
 
   if (!db.settings.storage) {
     go("welcome");
