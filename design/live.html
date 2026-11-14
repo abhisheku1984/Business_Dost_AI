@@ -107,6 +107,10 @@
       <span class="app-bar__pill app-bar__pill--live" id="storage-pill">Live · saved on this device</span>
     </div>
     <div class="app-bar__right">
+      <button class="app-bar__ghost dk-ask" type="button" data-nav="ask" aria-label="Ask Dost">
+        <svg class="i" aria-hidden="true"><use href="#i-ai"/></svg>
+        <span>Ask Dost</span>
+      </button>
       <span class="dk-user" id="dk-user" hidden></span>
       <button class="app-bar__ghost" id="theme-btn" type="button" aria-label="Switch theme">
         <svg class="i" aria-hidden="true"><use href="#i-moon"/></svg>
@@ -141,6 +145,12 @@
       <p class="hint">Real data, saved in this browser. Speak a sale with the <b>Dost</b> orb, or add one by hand — the dashboard, stock and dues all follow.</p>
     </div>
   </main>
+
+  <!-- the Dost orb: the phone tab bar has one, the desktop needs its own -->
+  <button class="dk-ai" id="dk-ai" type="button" data-nav="voice" aria-label="Ask Dost by voice" title="Ask Dost — speak or type (A)">
+    <span class="dk-ai__ring"></span>
+    <svg class="i" aria-hidden="true"><use href="#i-mic"/></svg>
+  </button>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

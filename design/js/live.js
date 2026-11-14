@@ -2259,6 +2259,7 @@
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
           <h1>Ask Dost</h1>
+          <button class="lv-icon-btn" data-nav="voice" aria-label="Speak instead of typing" title="Speak instead">${icon("mic")}</button>
           <button class="lv-icon-btn" data-act="ask-clear" aria-label="Clear conversation">${icon("refresh")}</button>
         </div>
         <div class="lv-chat" id="chat">${db.chat.length ? db.chat.map(chatBubble).join("") : empty}</div>
@@ -5091,6 +5092,7 @@
     purchase: "purchases", "purchase-new": "purchases",
     supplier: "suppliers", "supplier-new": "suppliers",
     customer: "customers", "customer-new": "customers",
+    voice: "ask", draft: "ask",
     payment: "payments", expense: "expenses", settings: "more",
   };
 
@@ -5126,6 +5128,7 @@
       </div>`;
 
     document.body.classList.toggle("is-welcome", base === "welcome");
+    document.body.classList.toggle("is-voice", base === "voice");
 
     const chip = document.getElementById("dk-user");
     if (chip) {

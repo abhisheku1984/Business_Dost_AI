@@ -497,3 +497,79 @@
   .lv-welcome__hero p { font-size: 13.5px; max-width: 620px; }
   .lv-welcome .screen__scroll { padding-top: 12px; }
 }
+
+/* ---------- Ask Dost, always reachable ---------- */
+.dk-ask { display: none; }
+.dk-ai { display: none; }
+
+@media (min-width: 900px) {
+  /* header chip */
+  .dk-ask {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--brand-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: var(--fw-semi);
+    cursor: pointer;
+  }
+  .dk-ask .i { width: 15px; height: 15px; }
+  .dk-ask:hover { background: var(--brand-soft); border-color: transparent; }
+
+  /* the orb, docked bottom-right */
+  .dk-ai {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    right: 26px;
+    bottom: 26px;
+    width: 58px;
+    height: 58px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ai-gradient);
+    color: #06201a;
+    cursor: pointer;
+    z-index: 40;
+    box-shadow: 0 14px 34px -12px rgba(10, 106, 86, .55), 0 2px 6px rgba(0, 0, 0, .12);
+    transition: transform 140ms var(--ease-standard), box-shadow 140ms var(--ease-standard);
+  }
+  .dk-ai .i { width: 23px; height: 23px; position: relative; }
+  .dk-ai:hover { transform: translateY(-2px) scale(1.03); }
+  .dk-ai:active { transform: scale(.97); }
+  .dk-ai:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--brand-ring); }
+  .dk-ai__ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+    animation: dkAiPulse 3.6s ease-in-out infinite;
+  }
+  @keyframes dkAiPulse {
+    0%, 100% { transform: scale(1); opacity: .55; }
+    50% { transform: scale(1.12); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dk-ai__ring { animation: none; opacity: .35; }
+  }
+
+  /* never show the orb on top of the orb */
+  body.is-voice .dk-ai { display: none; }
+
+  /* ---------- the voice screen, laid out for a monitor ---------- */
+  .lv-voice { align-items: center; padding-top: 6px; }
+  .lv-voice__bar { width: 100%; max-width: 760px; padding: 8px 6px 0; box-sizing: border-box; }
+  .lv-orb-wrap { margin-top: 40px; }
+  .lv-orb { width: 168px; height: 168px; }
+  .lv-orb .i { width: 46px; height: 46px; }
+  .lv-voice__state { font-size: 15px; margin-top: 22px; }
+  .lv-voice__line { max-width: 620px; text-align: center; font-size: 15px; line-height: 1.6; }
+  .lv-voice__foot { width: 100%; max-width: 620px; box-sizing: border-box; padding: 0 6px 26px; }
+  .lv-voice__chips button { font-size: 12px; }
+}
