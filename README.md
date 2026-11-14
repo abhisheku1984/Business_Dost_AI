@@ -164,10 +164,12 @@ Everything below runs today in `design/live.html` — no mockups.
 
 | Area | State |
 | --- | --- |
-| Sales, invoices, GST, quotations → bills | Working |
+| Sales, GST, quotations → bills | Working |
+| **Invoices register** — every bill, search by number/customer/item, Paid / Udhaar / Today, print & collect | Working |
 | Products **and services** (HSN/SAC, no stock for services) | Working |
 | Customers, udhaar, part payments, reminders | Working |
-| Suppliers, purchase bills, stock-in, payables | Working |
+| Suppliers — what each one supplies, phone, GSTIN, address, notes, edit | Working |
+| **Purchase bills** — many items in one bill, their bill number and date, paid / part paid / credit, notes, correct or delete | Working |
 | Stock movements, low-stock alerts, profit & COGS | Working |
 | Expenses, categories, reports, 14-day charts | Working |
 | Documents — bill photos, compressed and stored with the data | Working |

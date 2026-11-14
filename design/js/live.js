@@ -125,8 +125,8 @@
       items,
       customers,
       suppliers: [
-        { id: "sp1", name: "Ultratech Depot", phone: "98450 22110", gstin: "36AABCU9603R1ZM" },
-        { id: "sp2", name: "Sri Balaji Traders", phone: "99080 44551", gstin: "" },
+        { id: "sp1", name: "Ultratech Depot", phone: "98450 22110", gstin: "36AABCU9603R1ZM", supplies: "Cement, TMT bars", address: "Yeshwanthpur, Bengaluru", notes: "Delivers in 2 days · bill on credit 15 days" },
+        { id: "sp2", name: "Sri Balaji Traders", phone: "99080 44551", gstin: "", supplies: "Paint, Plumbing", address: "", notes: "" },
       ],
       sales: [
         sale(2419, today, "c1", "it1", 12, "UPI", 2),
@@ -590,7 +590,14 @@
     purchaseCart: [],
     purchaseSupplier: "",
     purchaseItem: "",
+    purchaseQty: 1,
+    purchaseCost: "",
     purchasePaid: true,
+    purchaseBillNo: "",
+    purchaseNotes: "",
+    purchasePaidAmount: "",
+    purchaseEditId: "",
+    invoices: { tab: "all", q: "" },
     cart: [],
     reports: { days: 7 },
     ask: { typing: false },
@@ -915,9 +922,12 @@
           <div class="lv-quick">
             <button data-act="newsale"><span class="lv-tile lv-tile--brand">${icon("plus")}</span>New sale</button>
             <button data-act="new-quote"><span class="lv-tile">${icon("sales")}</span>Quotation</button>
+            <button data-nav="invoices"><span class="lv-tile">${icon("receipt")}</span>Invoices</button>
+            <button data-act="new-purchase"><span class="lv-tile">${icon("truck")}</span>Purchase bill</button>
             <button data-act="expense"><span class="lv-tile">${icon("wallet")}</span>Expense</button>
             <button data-nav="payments"><span class="lv-tile">${icon("card")}</span>Payment</button>
             <button data-nav="stock"><span class="lv-tile">${icon("box")}</span>Stock</button>
+            <button data-nav="customers"><span class="lv-tile">${icon("users")}</span>Customers</button>
             <button data-nav="profit"><span class="lv-tile lv-tile--ai">${icon("chart")}</span>Profit</button>
           </div>
 
@@ -1007,6 +1017,25 @@
     ].filter(Boolean).join("\n");
   }
 
+  function purchaseText(p) {
+    const lines = p.lines
+      .map((l) => `${l.name} — ${l.qty} ${l.unit || ""} × ${money(l.cost)} = ${money(l.qty * l.cost)}`)
+      .join("\n");
+    const date = new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    const due = Math.max(0, Number(p.amount) - Number(p.paidAmount || 0));
+    return [
+      `Purchase bill #${p.no}${p.billNo ? ` (their bill ${p.billNo})` : ""}`,
+      date,
+      `From: ${p.supplierName}`,
+      "",
+      lines,
+      "",
+      `Total: ${money(p.amount)}`,
+      due > 0 ? `Paid ${money(p.paidAmount || 0)} · ${money(due)} still payable` : "Paid in full",
+      p.notes || "",
+    ].filter(Boolean).join("\n");
+  }
+
   function viewSale(id) {
     const sale = db.sales.find((s) => s.id === id);
     if (!sale) return viewSales();
@@ -1054,6 +1083,110 @@
           </div>
         </div>
       </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* invoices: every bill the shop ever raised, in one register          */
+  /* ------------------------------------------------------------------ */
+  const INVOICE_TABS = [
+    { key: "all", label: "All" },
+    { key: "paid", label: "Paid" },
+    { key: "due", label: "Udhaar" },
+    { key: "today", label: "Today" },
+  ];
+
+  function invoiceState() {
+    if (!ui.invoices) ui.invoices = { tab: "all", q: "" };
+    return ui.invoices;
+  }
+
+  const invoiceMatches = (sale, tab, q) => {
+    if (tab === "paid" && !sale.paid) return false;
+    if (tab === "due" && sale.paid) return false;
+    if (tab === "today" && sale.date !== dayKey()) return false;
+    if (!q) return true;
+    const hay = [`inv-${sale.no}`, String(sale.no), sale.customerName, sale.method]
+      .concat(sale.lines.map((l) => l.name))
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  };
+
+  function invoiceSet() {
+    const state = invoiceState();
+    const tab = INVOICE_TABS.some((t) => t.key === state.tab) ? state.tab : "all";
+    const q = String(state.q || "").trim().toLowerCase();
+    const all = db.sales.slice().sort((a, b) => b.at - a.at);
+    const rows = all.filter((sale) => invoiceMatches(sale, tab, q));
+    const counts = { all: all.length, paid: 0, due: 0, today: 0 };
+    all.forEach((sale) => {
+      if (sale.paid) counts.paid += 1;
+      else counts.due += 1;
+      if (sale.date === dayKey()) counts.today += 1;
+    });
+    const total = rows.reduce((t, x) => t + Number(x.amount || 0), 0);
+    const collected = rows.filter((x) => x.paid).reduce((t, x) => t + Number(x.amount || 0), 0);
+    return { state, tab, q, all, rows, counts, total, collected, udhaar: total - collected };
+  }
+
+  function invoiceTabsHtml() {
+    const { tab, counts } = invoiceSet();
+    return INVOICE_TABS.map((t) => `<button type="button" data-act="invoice-tab" data-tab="${t.key}" class="${t.key === tab ? "is-on" : ""}">${t.label} <span class="muted">${counts[t.key]}</span></button>`).join("");
+  }
+
+  function invoiceMetricsHtml() {
+    const { total, collected, udhaar } = invoiceSet();
+    return `<div class="lv-metric"><b class="num">${money(total)}</b><span>On screen</span></div>
+      <div class="lv-metric"><b class="num">${money(collected)}</b><span>Collected</span></div>
+      <div class="lv-metric"><b class="num">${money(udhaar)}</b><span>Udhaar</span></div>`;
+  }
+
+  function invoiceRow(sale) {
+    return `<button class="lv-row-btn" data-nav="sale:${sale.id}">
+      ${avatar(initials(sale.customerName), sale.paid ? "mint" : "sky")}
+      <span class="row__body">
+        <span class="lv-row-title">${esc(sale.customerName)}</span>
+        <span class="lv-row-sub">#INV-${sale.no} · ${new Date(sale.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${sale.lines.length} ${sale.lines.length === 1 ? "item" : "items"} · ${esc(sale.method)}</span>
+      </span>
+      <span class="row__end">
+        <span class="lv-row-amount">${money(sale.amount)}</span>
+        <span class="lv-tag ${sale.paid ? "lv-tag--paid" : "lv-tag--due"}">${sale.paid ? "Paid" : "Udhaar"}</span>
+      </span>
+    </button>`;
+  }
+
+  function invoiceRowsHtml() {
+    const { rows, q } = invoiceSet();
+    if (!rows.length) {
+      return `<div class="lv-empty"><b>${q ? "Nothing matches that." : "No invoices here yet."}</b><br/>${q ? "Try a customer name or an #INV number." : "Raise the first invoice and it lands in this register."}</div>`;
+    }
+    return rows.map(invoiceRow).join("");
+  }
+
+  function viewInvoices() {
+    const { state } = invoiceSet();
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row">
+            <h1 class="t-title1">Invoices</h1>
+            <button class="btn btn--primary btn--sm" data-act="newsale">${icon("plus")} New invoice</button>
+          </div>
+          <p class="shead__sub t-subhead">Every bill you raised — search it, print it, collect it. Udhaar is the unpaid part.</p>
+        </div>
+        <div class="sbody">
+          <div class="lv-metrics" id="inv-metrics">${invoiceMetricsHtml()}</div>
+          <div class="lv-seg lv-seg--tabs" id="invoice-tabs">${invoiceTabsHtml()}</div>
+          <div class="lv-field" style="margin-top:12px">
+            <input class="lv-input" id="inv-search" type="search" placeholder="Search invoice no., customer or item…" value="${esc(state.q || "")}" />
+          </div>
+          <div class="people" id="inv-rows" style="margin-top:12px">${invoiceRowsHtml()}</div>
+        </div>
+      </div>
+      ${tabbar("sales")}
       ${indicator()}
     </div>`;
   }
@@ -3173,7 +3306,7 @@
                 <span class="avatar avatar--mint" aria-hidden="true">${esc(initials(s.name))}</span>
                 <span class="row__body">
                   <span class="lv-row-title">${esc(s.name)}</span>
-                  <span class="lv-row-sub">${s.phone || "no phone"}${s.gstin ? " · " + esc(s.gstin) : ""}</span>
+                  <span class="lv-row-sub">${esc(s.supplies || (s.phone ? s.phone : "no phone"))}${s.supplies && s.phone ? " · " + esc(s.phone) : ""}</span>
                 </span>
                 <span class="row__end">
                   <span class="lv-row-amount" style="${s.owed ? "" : "color:var(--ink-4)"}">${s.owed ? money(s.owed) : "settled"}</span>
@@ -3191,32 +3324,56 @@
     </div>`;
   }
 
-  function viewSupplierForm() {
-    const d = ui.supplierDraft || {};
+  function viewSupplierForm(id) {
+    const editing = Boolean(id);
+    const stored = editing ? db.suppliers.find((s) => s.id === id) : null;
+    if (editing && !stored) return viewSuppliers();
+    /* a half-typed "new supplier" draft only prefills the new form, never an edit */
+    const draft = ui.supplierDraft && String(ui.supplierDraft.for || "") === String(id || "") ? ui.supplierDraft : null;
+    const v = { name: "", phone: "", gstin: "", supplies: "", address: "", notes: "", ...(stored || {}), ...(draft || {}) };
+    const known = [...new Set([].concat(
+      db.items.map((i) => i.name),
+      db.suppliers.map((s) => String(s.supplies || "")).join(",").split(","),
+      ["Cement", "TMT bars", "Paint", "Plumbing", "Electrical", "Hardware", "Tiles", "Sand", "Plywood"]
+    ).map((x) => String(x).trim()).filter(Boolean))].slice(0, 80);
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
-          <h1>New supplier</h1>
+          <h1>${editing ? "Edit supplier" : "New supplier"}</h1>
         </div>
         <div class="lv-form">
           <div class="lv-field">
-            <span class="lv-label">Name</span>
-            <input class="lv-input" id="sup-name" placeholder="e.g. Ultratech Depot" value="${esc(d.name || "")}" autofocus />
+            <span class="lv-label">Supplier / firm name</span>
+            <input class="lv-input" id="sup-name" placeholder="e.g. Ultratech Depot" value="${esc(v.name || "")}" autofocus />
           </div>
           <div class="lv-pair">
             <div class="lv-field">
               <span class="lv-label">Phone</span>
-              <input class="lv-input" id="sup-phone" type="tel" inputmode="tel" placeholder="optional" value="${esc(d.phone || "")}" />
+              <input class="lv-input" id="sup-phone" type="tel" inputmode="tel" placeholder="optional" value="${esc(v.phone || "")}" />
             </div>
             <div class="lv-field">
               <span class="lv-label">GSTIN</span>
-              <input class="lv-input" id="sup-gstin" placeholder="optional" value="${esc(d.gstin || "")}" />
+              <input class="lv-input" id="sup-gstin" placeholder="optional" value="${esc(v.gstin || "")}" />
             </div>
           </div>
+          <div class="lv-field">
+            <span class="lv-label">What does this supplier supply?</span>
+            <input class="lv-input" id="sup-supplies" list="sup-supplies-list" placeholder="e.g. Cement, TMT bars" value="${esc(v.supplies || "")}" />
+            <datalist id="sup-supplies-list">${known.map((k) => `<option value="${esc(k)}"></option>`).join("")}</datalist>
+            <p class="lv-hintline" style="text-align:left;margin:6px 0 0">Separate with commas. This is what you see when you pick them on a purchase bill.</p>
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Address</span>
+            <input class="lv-input" id="sup-address" placeholder="optional" value="${esc(v.address || "")}" />
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Notes</span>
+            <textarea class="lv-input" id="sup-notes" rows="2" placeholder="Credit days, delivery day, who to call…">${esc(v.notes || "")}</textarea>
+          </div>
           <div class="lv-actions">
-            <button class="btn btn--primary" data-act="save-supplier">${icon("check")} Add supplier</button>
+            <button class="btn btn--primary" data-act="save-supplier" data-id="${editing ? stored.id : ""}">${icon("check")} ${editing ? "Save changes" : "Add supplier"}</button>
           </div>
         </div>
       </div>
@@ -3229,29 +3386,52 @@
     if (!s) return viewSuppliers();
     const bought = db.purchases.filter((p) => p.supplierId === id).sort((a, b) => b.at - a.at);
     const owed = supplierOwed(id);
+    const tags = String(s.supplies || "").split(",").map((x) => x.trim()).filter(Boolean);
+    const again = [...new Set(bought.flatMap((p) => p.lines.map((l) => l.itemId)))]
+      .map((iid) => db.items.find((i) => i.id === iid))
+      .filter(Boolean)
+      .slice(0, 8);
+    const phone = String(s.phone || "").replace(/[^0-9+]/g, "");
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
           <h1>${esc(s.name)}</h1>
+          <span class="lv-appbar__spacer"></span>
+          <button class="lv-icon-btn" data-nav="supplier-edit:${s.id}" aria-label="Edit supplier">${icon("edit")}</button>
         </div>
         <div class="sbody">
           <section class="lv-metric" style="padding:16px">
             <span>You owe</span>
             <b style="font-size:26px;margin-top:4px">${money(owed)}</b>
-            <small style="color:var(--ink-3);font-size:11px;margin-top:4px">${(s.phone || "no phone")}${s.gstin ? " · GSTIN " + esc(s.gstin) : ""}</small>
+            <small style="color:var(--ink-3);font-size:11px;margin-top:4px">${esc(s.name)}${s.gstin ? " · GSTIN " + esc(s.gstin) : ""}</small>
           </section>
 
-          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Purchases</span>
-            <span class="section-label__action" data-act="new-purchase" role="button" tabindex="0">Add</span>
+          ${tags.length ? `<div class="section-label" style="margin-top:18px"><span class="section-label__title">Supplies</span></div>
+          <div class="lv-chips">${tags.map((t) => `<span class="chip chip--soft">${esc(t)}</span>`).join("")}</div>` : ""}
+
+          <div class="people" style="margin-top:14px">
+            ${s.phone ? `<div class="lv-data-row"><div><b>Phone</b><small>${esc(s.phone)}</small></div><span class="hstack gap-2">
+              <a class="btn btn--ghost btn--sm" href="tel:${esc(phone)}">${icon("phone")} Call</a>
+              <a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://wa.me/${esc(phone.replace(/^\+/, ""))}">WhatsApp</a>
+            </span></div>` : ""}
+            ${s.address ? `<div class="lv-data-row"><div><b>Address</b><small>${esc(s.address)}</small></div></div>` : ""}
+            ${s.notes ? `<div class="lv-data-row"><div><b>Notes</b><small>${esc(s.notes)}</small></div></div>` : ""}
+          </div>
+
+          ${again.length ? `<div class="section-label" style="margin-top:18px"><span class="section-label__title">Buy again</span></div>
+          <div class="lv-chips">${again.map((i) => `<button class="chip" data-act="purchase-again" data-supplier="${s.id}" data-item="${i.id}">${icon("plus")} ${esc(i.name)}</button>`).join("")}</div>` : ""}
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Purchase bills</span>
+            <span class="section-label__action" data-act="new-purchase" data-id="${s.id}" role="button" tabindex="0">New bill</span>
           </div>
           <div class="people" style="margin-top:8px">
             ${bought.length ? bought.map((p) => `<button class="lv-row-btn" data-nav="purchase:${p.id}">
                 <span class="icon-tile ${p.paid ? "icon-tile--brand" : "icon-tile--sand"}">${icon("truck")}</span>
                 <span class="row__body">
-                  <span class="lv-row-title">Bill #${p.no} · ${p.lines.length} ${p.lines.length === 1 ? "item" : "items"}</span>
-                  <span class="lv-row-sub">${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${p.paid ? "paid" : "pending"}</span>
+                  <span class="lv-row-title">Bill #${p.no}${p.billNo ? " · " + esc(p.billNo) : ""}</span>
+                  <span class="lv-row-sub">${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${p.lines.length} ${p.lines.length === 1 ? "item" : "items"} · ${p.paid ? "paid" : p.paidAmount > 0 ? "part paid" : "pending"}</span>
                 </span>
                 <span class="row__end"><span class="lv-row-amount">${money(p.amount)}</span></span>
               </button>`).join("") : `<div class="lv-empty">Nothing bought yet.</div>`}
@@ -3272,70 +3452,129 @@
     </div>`;
   }
 
+  /* keep what has been typed on a purchase bill alive across re-renders */
+  function capturePurchaseForm() {
+    ui.purchaseBillNo = (($("#pur-billno") || {}).value || "").trim();
+    ui.purchaseNotes = (($("#pur-notes") || {}).value || "").trim();
+    ui.purchaseDate = (($("#pur-date") || {}).value || "").trim() || dayKey();
+    if ($("#pur-qty")) ui.purchaseQty = $("#pur-qty").value;
+    if ($("#pur-cost")) ui.purchaseCost = $("#pur-cost").value;
+    if ($("#pur-paidamount")) ui.purchasePaidAmount = $("#pur-paidamount").value;
+  }
+
   function viewPurchaseForm() {
+    const editing = db.purchases.find((p) => p.id === ui.purchaseEditId) || null;
     const cart = Array.isArray(ui.purchaseCart) ? ui.purchaseCart : [];
-    const total = cart.reduce((t, l) => t + l.qty * l.cost, 0);
+    const total = Math.round(cart.reduce((t, l) => t + Number(l.qty) * Number(l.cost), 0));
     const supplierId = ui.purchaseSupplier || (db.suppliers[0] ? db.suppliers[0].id : "");
+    if (!ui.purchaseItem && products()[0]) ui.purchaseItem = products()[0].id;
     const itemId = ui.purchaseItem || (products()[0] ? products()[0].id : "");
+    const picked = products().find((i) => i.id === itemId) || {};
+    const supplier = db.suppliers.find((s) => s.id === supplierId) || null;
+    const supplies = supplier ? String(supplier.supplies || "").split(",").map((x) => x.trim()).filter(Boolean) : [];
+    const qty = Number(ui.purchaseQty) > 0 ? ui.purchaseQty : 1;
+    const cost = String(ui.purchaseCost == null ? "" : ui.purchaseCost) !== "" ? ui.purchaseCost : (picked.buy || "");
+    const credit = ui.purchasePaid === false;
+    const today = ui.purchaseDate || dayKey();
+
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
-          <h1>Purchase</h1>
-          ${cart.length ? `<span class="pill pill--success">${cart.length} in bill</span>` : ""}
+          <h1>${editing ? `Edit bill #${editing.no}` : "Purchase bill"}</h1>
+          ${cart.length ? `<span class="pill pill--success">${cart.length} ${cart.length === 1 ? "item" : "items"}</span>` : ""}
         </div>
         <div class="lv-form">
           <div class="lv-field">
-            <span class="lv-label">Supplier</span>
+            <span class="lv-label">Bought from</span>
             <select class="lv-select" id="pur-supplier">
               ${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === supplierId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}
-              <option value="__new">＋ New supplier…</option>
+              <option value="__new" ${supplierId === "__new" ? "selected" : ""}>＋ New supplier…</option>
             </select>
           </div>
-          ${supplierId === "__new" ? `<div class="lv-field"><span class="lv-label">Supplier name</span><input class="lv-input" id="pur-new-supplier" placeholder="Name" /></div>` : ""}
-
-          ${cart.length ? `<div class="lv-bill">
-            ${cart.map((l, idx) => `<div class="lv-bill__row">
-              <div><b>${esc(l.name)}</b><small>${l.qty} × ${money(l.cost)}</small></div>
-              <span class="lv-bill__end">
-                <b class="num">${money(l.qty * l.cost)}</b>
-                <button class="lv-bill__x" data-act="rm-purchase-line" data-idx="${idx}" aria-label="Remove">${icon("close")}</button>
-              </span>
-            </div>`).join("")}
+          ${supplierId === "__new" ? `<div class="lv-field"><span class="lv-label">New supplier name</span><input class="lv-input" id="pur-new-supplier" placeholder="e.g. Gupta Cement" /></div>` : ""}
+          ${supplies.length ? `<div class="lv-field">
+            <span class="lv-label">${esc(supplier.name)} supplies</span>
+            <div class="lv-chips">${supplies.map((t) => `<button type="button" class="chip" data-act="pur-pick-supply" data-supply="${esc(t)}">${esc(t)}</button>`).join("")}</div>
           </div>` : ""}
 
-          <div class="lv-field">
-            <span class="lv-label">${cart.length ? "Add another item" : "Item"}</span>
-            <select class="lv-select" id="pur-item">
-              ${products().map((i) => `<option value="${i.id}" ${i.id === itemId ? "selected" : ""}>${esc(i.name)} — ${i.stock} ${i.unit} in stock</option>`).join("")}
-            </select>
-            <button class="btn btn--ghost btn--sm" data-act="purchase-new-item" style="margin-top:6px">${icon("plus")} New product</button>
-          </div>
           <div class="lv-pair">
             <div class="lv-field">
-              <span class="lv-label">Quantity</span>
-              <input class="lv-input lv-input--num" id="pur-qty" type="number" inputmode="decimal" min="0" value="1" />
+              <span class="lv-label">Their bill number</span>
+              <input class="lv-input" id="pur-billno" placeholder="optional, e.g. 2281" value="${esc(ui.purchaseBillNo || "")}" />
             </div>
             <div class="lv-field">
-              <span class="lv-label">Cost per unit</span>
-              <input class="lv-input lv-input--num" id="pur-cost" type="number" inputmode="decimal" min="0" value="${(products().find((i) => i.id === itemId) || {}).buy || ""}" />
+              <span class="lv-label">Bill date</span>
+              <input class="lv-input" id="pur-date" type="date" value="${esc(today)}" />
             </div>
           </div>
+
+          <div class="section-label" style="margin-top:4px">
+            <span class="section-label__title">Items on this bill</span>
+            <span class="muted" style="font-size:11px">${cart.length} ${cart.length === 1 ? "line" : "lines"}</span>
+          </div>
+          ${cart.length ? `<div class="lv-bill">
+            ${cart.map((l, idx) => `<div class="lv-bill__row">
+              <b class="lv-bill__name">${esc(l.name)}<small>qty × cost per ${esc(l.unit || "unit")}</small></b>
+              <span class="lv-bill__edit">
+                <input class="lv-bill__inp" type="number" inputmode="decimal" min="0" step="any" value="${l.qty}" data-pur-qty="${idx}" aria-label="Quantity of ${esc(l.name)}" />
+                <span class="lv-bill__times">×</span>
+                <input class="lv-bill__inp" type="number" inputmode="decimal" min="0" step="any" value="${l.cost}" data-pur-cost="${idx}" aria-label="Cost per unit of ${esc(l.name)}" />
+              </span>
+              <span class="lv-bill__end">
+                <b class="num" id="pur-line-amt-${idx}">${money(Number(l.qty) * Number(l.cost))}</b>
+                <button class="lv-bill__x" data-act="rm-purchase-line" data-idx="${idx}" aria-label="Remove ${esc(l.name)}">${icon("close")}</button>
+              </span>
+            </div>`).join("")}
+          </div>` : `<div class="lv-empty" style="margin:0 0 4px"><b>No items yet.</b><br/>Pick the first thing that arrived below.</div>`}
+
+          <section class="lv-addbox">
+            <div class="lv-field">
+              <span class="lv-label">${cart.length ? "Add another item" : "Item that arrived"}</span>
+              <select class="lv-select" id="pur-item">
+                ${products().map((i) => `<option value="${i.id}" ${i.id === itemId ? "selected" : ""}>${esc(i.name)} — ${i.stock} ${i.unit} in stock</option>`).join("")}
+              </select>
+              <button class="btn btn--ghost btn--sm" data-act="purchase-new-item" style="margin-top:6px">${icon("plus")} New product</button>
+            </div>
+            <div class="lv-pair">
+              <div class="lv-field">
+                <span class="lv-label">Quantity</span>
+                <input class="lv-input lv-input--num" id="pur-qty" type="number" inputmode="decimal" min="0" step="any" value="${qty}" />
+              </div>
+              <div class="lv-field">
+                <span class="lv-label">Cost per ${esc(picked.unit || "unit")}</span>
+                <input class="lv-input lv-input--num" id="pur-cost" type="number" inputmode="decimal" min="0" step="any" value="${cost}" />
+              </div>
+            </div>
+            <div class="lv-actions">
+              <button class="btn btn--outline btn--block" data-act="add-purchase-line">${icon("plus")} Add to this bill</button>
+            </div>
+          </section>
+
+          <div class="lv-total"><span>Bill total</span><b id="pur-total">${money(total)}</b></div>
+
           <div class="lv-field">
             <span class="lv-label">Payment</span>
             <div class="lv-seg" id="pur-paid">
-              <button type="button" data-act="pur-paid" data-paid="1" class="is-on">Paid now</button>
-              <button type="button" data-act="pur-paid" data-paid="0" class="">On credit</button>
+              <button type="button" data-act="pur-paid" data-paid="1" class="${credit ? "" : "is-on"}">Paid now</button>
+              <button type="button" data-act="pur-paid" data-paid="0" class="${credit ? "is-on" : ""}">On credit</button>
             </div>
           </div>
+          ${credit ? `<div class="lv-field">
+            <span class="lv-label">Paid now (optional)</span>
+            <input class="lv-input lv-input--num" id="pur-paidamount" type="number" inputmode="decimal" min="0" placeholder="0" value="${esc(ui.purchasePaidAmount == null ? "" : ui.purchasePaidAmount)}" />
+            <p class="lv-hintline" style="text-align:left;margin:6px 0 0">Leave empty if nothing is paid yet — the rest stays as payable to this supplier.</p>
+          </div>` : ""}
 
-          <div class="lv-total"><span>Total</span><b id="pur-total">${money(total)}</b></div>
+          <div class="lv-field">
+            <span class="lv-label">Notes</span>
+            <input class="lv-input" id="pur-notes" placeholder="optional — transport, damage, credit days" value="${esc(ui.purchaseNotes || "")}" />
+          </div>
+
           <p class="lv-hintline">Receiving stock updates the shelf and the cost price used for profit.</p>
-
           <div class="lv-actions">
-            <button class="btn btn--primary" data-act="save-purchase">${icon("check")} Save purchase${cart.length ? " · " + cart.length + " items" : ""}</button>
-            <button class="btn btn--outline" data-act="add-purchase-line">${icon("plus")} Add another item</button>
+            <button class="btn btn--primary" data-act="save-purchase">${icon("check")} ${editing ? "Save changes" : "Save purchase bill"}${cart.length ? " · " + money(total) : ""}</button>
           </div>
         </div>
       </div>
@@ -3366,7 +3605,7 @@
                 <span class="icon-tile ${p.paid ? "icon-tile--brand" : "icon-tile--sand"}">${icon("truck")}</span>
                 <span class="row__body">
                   <span class="lv-row-title">${esc(p.supplierName)} · #${p.no}</span>
-                  <span class="lv-row-sub">${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${p.lines.length} ${p.lines.length === 1 ? "item" : "items"} · ${p.paid ? "paid" : "on credit"}</span>
+                  <span class="lv-row-sub">${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${p.lines.length} ${p.lines.length === 1 ? "item" : "items"} · ${p.billNo ? "bill " + esc(p.billNo) + " · " : ""}${p.paid ? "paid" : p.paidAmount > 0 ? "part paid" : "on credit"}</span>
                 </span>
                 <span class="row__end"><span class="lv-row-amount">${money(p.amount)}</span></span>
               </button>`).join("") : `<div class="lv-empty"><b>No purchases yet.</b><br/>Record one when stock arrives and the shelf updates itself.</div>`}
@@ -3380,34 +3619,49 @@
 
   function viewPurchase(id) {
     const p = db.purchases.find((x) => x.id === id);
-    if (!p) return viewSuppliers();
-    const due = Math.max(0, p.amount - (p.paidAmount || 0));
+    if (!p) return viewPurchases();
+    const due = Math.max(0, Number(p.amount) - Number(p.paidAmount || 0));
+    const paidAmount = Number(p.paidAmount || 0);
+    const supplier = db.suppliers.find((s) => s.id === p.supplierId);
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-appbar">
           <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
-          <h1>Bill #${p.no}</h1>
-          <span class="pill ${p.paid ? "pill--success" : "pill--warn"}">${p.paid ? "Paid" : "Pending"}</span>
+          <h1>Purchase bill #${p.no}</h1>
+          <span class="pill ${due <= 0 ? "pill--success" : "pill--warn"}">${due <= 0 ? "Paid" : paidAmount > 0 ? "Part paid" : "Pending"}</span>
         </div>
         <div class="sbody">
           <section class="invoice-card">
             <div class="lr-head">
               <div>
                 <div class="lr-shop">${esc(p.supplierName)}</div>
-                <div class="lr-meta">Purchase #${p.no} · ${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+                <div class="lr-meta">Purchase #${p.no}${p.billNo ? " · their bill " + esc(p.billNo) : ""} · ${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
               </div>
               <div class="lr-total">${money(p.amount)}</div>
             </div>
             <div class="lr-lines">
-              ${p.lines.map((l) => `<div class="lr-row"><span>${esc(l.name)}<small>${l.qty} × ${money(l.cost)}</small></span><b>${money(l.qty * l.cost)}</b></div>`).join("")}
+              ${p.lines.map((l) => `<div class="lr-row"><span>${esc(l.name)}<small>${l.qty} ${esc(l.unit || "")} × ${money(l.cost)}</small></span><b>${money(l.qty * l.cost)}</b></div>`).join("")}
             </div>
-            <div class="lr-sum"><span>Total</span><b>${money(p.amount)}</b></div>
+            <div class="lr-sum lr-sum--sub"><span>${p.lines.length} ${p.lines.length === 1 ? "item" : "items"}</span><b>${money(p.amount)}</b></div>
+            ${paidAmount > 0 ? `<div class="lr-sum lr-sum--sub"><span>Paid</span><b>${money(paidAmount)}</b></div>` : ""}
+            ${due > 0 ? `<div class="lr-sum"><span>Still payable</span><b>${money(due)}</b></div>` : `<div class="lr-sum"><span>Total</span><b>${money(p.amount)}</b></div>`}
           </section>
-          ${due > 0 ? `<p class="lv-hintline">${money(due)} still payable.</p>` : ""}
-          ${docAttachBlock({ kind: "purchase", id: p.id, label: `Bill #${p.no} · ${p.supplierName}` }, "Supplier bill")}
+          ${p.notes ? `<p class="lv-hintline" style="text-align:left;margin-top:12px">${esc(p.notes)}</p>` : ""}
+          <div class="people" style="margin-top:14px">
+            <button class="lv-data-row lv-data-row--link" data-nav="supplier:${p.supplierId}">
+              <div><b>${esc(p.supplierName)}</b><small>${supplier ? esc(supplier.supplies || "supplier") : "supplier"} · see bills and payments</small></div>
+              <span class="pill">${money(due > 0 ? due : 0)} due</span>
+            </button>
+          </div>
+          ${docAttachBlock({ kind: "purchase", id: p.id, label: `Bill #${p.no} · ${p.supplierName}` }, "Supplier bill photo")}
           <div class="lv-actions" style="margin-top:14px">
-            ${due > 0 ? `<button class="btn btn--primary" data-act="pay-purchase" data-id="${p.id}">${icon("check")} Mark paid</button>` : ""}
+            ${due > 0 ? `<button class="btn btn--primary" data-act="pay-purchase" data-id="${p.id}">${icon("check")} Mark ${money(due)} paid</button>` : ""}
+            <button class="btn btn--outline" data-act="edit-purchase" data-id="${p.id}">${icon("edit")} Edit this bill</button>
+            <div class="lv-pair">
+              <button class="btn btn--outline" data-act="print-invoice">${icon("download")} Print / PDF</button>
+              <button class="btn btn--outline" data-act="copy-purchase" data-id="${p.id}">${icon("edit")} Copy text</button>
+            </div>
             <button class="btn btn--danger" data-act="delete-purchase" data-id="${p.id}">${icon("trash")} Delete and take stock back</button>
           </div>
         </div>
@@ -3647,7 +3901,7 @@
   const isStaff = () => currentUser().role === "staff";
 
   /* what a staff member may not do — money, settings and deletions stay with the owner */
-  const STAFF_BLOCKED_ROUTES = ["settings", "users", "profit", "reports", "audit", "plan", "suppliers", "purchases", "purchase", "purchase-new", "inventory"];
+  const STAFF_BLOCKED_ROUTES = ["settings", "users", "profit", "reports", "audit", "plan", "suppliers", "supplier", "supplier-new", "supplier-edit", "purchases", "purchase", "purchase-new", "inventory"];
   const STAFF_BLOCKED_ACTIONS = [
     "save-settings", "save-item", "delete-item", "delete-sale", "delete-quote", "delete-purchase",
     "new-purchase", "pay-supplier", "pay-purchase", "save-supplier", "save-purchase",
@@ -3790,8 +4044,12 @@
               <div><b>Suppliers &amp; purchases</b><small>${money(totalPayable())} payable to ${db.suppliers.length} ${db.suppliers.length === 1 ? "supplier" : "suppliers"}</small></div>
               ${icon("chevron-right")}
             </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="invoices">
+              <div><b>Invoices</b><small>${db.sales.length} raised · ${db.sales.filter((x) => !x.paid).length} on udhaar · search, print, collect</small></div>
+              <span class="pill">${db.sales.length}</span>
+            </a>
             <a class="lv-data-row lv-data-row--link" data-nav="purchases">
-              <div><b>Purchase bills</b><small>Stock in, what you owe, what is paid</small></div>
+              <div><b>Purchase bills</b><small>What you bought from suppliers, and what is still payable</small></div>
               <span class="pill">${db.purchases.length}</span>
             </a>
             <a class="lv-data-row lv-data-row--link" data-nav="users">
@@ -3890,6 +4148,7 @@
     let html = "";
     if (base === "home") html = viewHome();
     else if (base === "sales") html = viewSales();
+    else if (base === "invoices") html = viewInvoices();
     else if (base === "sale") html = viewSale(id);
     else if (base === "customers") html = viewCustomers();
     else if (base === "customer") html = viewCustomer(id);
@@ -3916,6 +4175,7 @@
     else if (base === "plan") html = viewPlan();
     else if (base === "suppliers") html = viewSuppliers();
     else if (base === "supplier-new") html = viewSupplierForm();
+    else if (base === "supplier-edit") html = viewSupplierForm(id);
     else if (base === "supplier") html = viewSupplier(id);
     else if (base === "purchases") html = viewPurchases();
     else if (base === "purchase-new") html = viewPurchaseForm();
@@ -3955,6 +4215,7 @@
     const base = (name || "").split(":")[0];
     /* a "return to the bill" hint only survives while the form it belongs to is open */
     if (ui.itemReturn && !["item-new", "item-edit"].includes(base)) ui.itemReturn = null;
+    if (ui.purchaseEditId && ["item-new", "item-edit"].includes(base) === false && base !== "purchase-new") ui.purchaseEditId = "";
     if (base === "voice" && !ui.voice.live) {
       ui.voice.heard = "";
       ui.voice.interim = "";
@@ -4786,40 +5047,113 @@
         break;
       case "save-supplier": {
         event.preventDefault();
-        const name = (($("#sup-name") || {}).value || "").trim();
+        const editId = act.getAttribute("data-id") || "";
+        const val = (sel) => (($(sel) || {}).value || "").trim();
+        const name = val("#sup-name");
         if (!name) { toast("Give the supplier a name"); break; }
-        const created = {
-          id: uid("sp"),
+        const fields = {
           name: titleCase(name),
-          phone: (($("#sup-phone") || {}).value || "").trim(),
-          gstin: (($("#sup-gstin") || {}).value || "").trim(),
+          phone: val("#sup-phone"),
+          gstin: val("#sup-gstin"),
+          supplies: val("#sup-supplies"),
+          address: val("#sup-address"),
+          notes: val("#sup-notes"),
         };
+        const existing = editId ? db.suppliers.find((x) => x.id === editId) : null;
+        if (existing) {
+          Object.assign(existing, fields);
+          ui.supplierDraft = null;
+          persist();
+          logAct("Supplier updated", existing.name);
+          go(`supplier:${existing.id}`);
+          toast(`${existing.name} saved`);
+          break;
+        }
+        const created = { id: uid("sp"), ...fields };
         db.suppliers.push(created);
         ui.supplierDraft = null;
         persist();
+        logAct("Supplier added", created.name);
         go(`supplier:${created.id}`);
         toast(`${created.name} added`);
         break;
       }
       case "purchase-new-item": {
         event.preventDefault();
+        capturePurchaseForm();
         ui.itemDraft = { id: "", kind: "product", name: "" };
         ui.itemReturn = "purchase";
         go("item-new");
         break;
       }
-      case "new-purchase":
+      case "new-purchase": {
+        event.preventDefault();
+        const seeded = act.getAttribute("data-id") || "";
+        ui.purchaseCart = [];
+        ui.purchasePaid = true;
+        ui.purchasePaidAmount = "";
+        ui.purchaseEditId = "";
+        ui.purchaseBillNo = "";
+        ui.purchaseNotes = "";
+        ui.purchaseDate = dayKey();
+        ui.purchaseQty = 1;
+        ui.purchaseCost = "";
+        ui.purchaseSupplier = seeded || (db.suppliers[0] ? db.suppliers[0].id : "");
+        ui.purchaseItem = products()[0] ? products()[0].id : "";
+        go("purchase-new");
+        break;
+      }
+      case "purchase-again": {
         event.preventDefault();
         ui.purchaseCart = [];
         ui.purchasePaid = true;
-        ui.purchaseSupplier = db.suppliers[0] ? db.suppliers[0].id : "";
+        ui.purchasePaidAmount = "";
+        ui.purchaseBillNo = "";
+        ui.purchaseNotes = "";
+        ui.purchaseDate = dayKey();
+        ui.purchaseQty = 1;
+        ui.purchaseCost = "";
+        ui.purchaseEditId = "";
+        ui.purchaseSupplier = act.getAttribute("data-supplier") || (db.suppliers[0] ? db.suppliers[0].id : "");
+        ui.purchaseItem = act.getAttribute("data-item") || (products()[0] ? products()[0].id : "");
         go("purchase-new");
         break;
+      }
+      case "pur-pick-supply": {
+        event.preventDefault();
+        const word = String(act.getAttribute("data-supply") || "").toLowerCase().trim();
+        const match = products().find((i) => i.name.toLowerCase().includes(word) || word.includes(i.name.toLowerCase()));
+        if (!match) { toast(`No product matches “${act.getAttribute("data-supply")}” yet — use New product`); break; }
+        ui.purchaseItem = match.id;
+        ui.purchaseCost = match.buy || "";
+        ui.purchaseQty = 1;
+        render();
+        toast(`${match.name} picked — enter the quantity`);
+        break;
+      }
+      case "edit-purchase": {
+        event.preventDefault();
+        const target = db.purchases.find((x) => x.id === id);
+        if (!target) break;
+        ui.purchaseEditId = target.id;
+        ui.purchaseCart = target.lines.map((l) => ({ ...l }));
+        ui.purchaseSupplier = target.supplierId;
+        ui.purchaseItem = target.lines[0] ? target.lines[0].itemId : (products()[0] ? products()[0].id : "");
+        ui.purchaseQty = 1;
+        ui.purchaseCost = "";
+        ui.purchaseBillNo = target.billNo || "";
+        ui.purchaseNotes = target.notes || "";
+        ui.purchaseDate = target.date || dayKey();
+        ui.purchasePaid = Number(target.paidAmount || 0) >= Number(target.amount || 0);
+        ui.purchasePaidAmount = target.paidAmount != null ? String(target.paidAmount) : "";
+        go("purchase-new");
+        break;
+      }
       case "pur-paid": {
         event.preventDefault();
+        capturePurchaseForm();
         ui.purchasePaid = act.getAttribute("data-paid") !== "0";
-        const group = act.parentElement;
-        [...group.querySelectorAll("[data-act='pur-paid']")].forEach((b) => b.classList.toggle("is-on", b === act));
+        render();
         break;
       }
       case "add-purchase-line": {
@@ -4834,16 +5168,28 @@
           persist();
         }
         ui.purchaseSupplier = supplierId;
+        ui.purchaseBillNo = (($("#pur-billno") || {}).value || "").trim();
+        ui.purchaseNotes = (($("#pur-notes") || {}).value || "").trim();
+        ui.purchaseDate = (($("#pur-date") || {}).value || "").trim() || dayKey();
         const itemId = (($("#pur-item") || {}).value) || ui.purchaseItem;
         const item = db.items.find((i) => i.id === itemId);
         const qty = num(($("#pur-qty") || {}).value);
         const cost = num(($("#pur-cost") || {}).value);
         if (!item || qty <= 0) { toast("Enter the quantity that arrived"); break; }
         if (!Array.isArray(ui.purchaseCart)) ui.purchaseCart = [];
-        ui.purchaseCart.push({ itemId: item.id, name: item.name, unit: item.unit, qty, cost: cost || Number(item.buy) || 0 });
+        const lineCost = cost || Number(item.buy) || 0;
+        const same = ui.purchaseCart.findIndex((l) => l.itemId === item.id);
+        if (same >= 0) {
+          ui.purchaseCart[same].qty = Math.round((Number(ui.purchaseCart[same].qty) + qty) * 100) / 100;
+          ui.purchaseCart[same].cost = lineCost;
+        } else {
+          ui.purchaseCart.push({ itemId: item.id, name: item.name, unit: item.unit, qty, cost: lineCost });
+        }
         ui.purchaseItem = item.id;
+        ui.purchaseQty = 1;
+        ui.purchaseCost = "";
         render();
-        toast(`${item.name} added to the purchase`);
+        toast(`${item.name} ${same >= 0 ? "quantity updated" : "added to the bill"}`);
         break;
       }
       case "rm-purchase-line": {
@@ -4856,39 +5202,91 @@
       case "save-purchase": {
         event.preventDefault();
         let supplierId = (($("#pur-supplier") || {}).value) || ui.purchaseSupplier;
-        let supplierName = "";
         if (supplierId === "__new") {
           const name = (($("#pur-new-supplier") || {}).value || "").trim();
           if (!name) { toast("Name the new supplier first"); break; }
           const created = { id: uid("sp"), name: titleCase(name), phone: "", gstin: "" };
           db.suppliers.push(created);
           supplierId = created.id;
-          supplierName = created.name;
         }
         const supplier = db.suppliers.find((x) => x.id === supplierId);
         if (!supplier) { toast("Pick a supplier first"); break; }
 
-        const lines = (Array.isArray(ui.purchaseCart) ? ui.purchaseCart : []).map((l) => ({ ...l }));
+        const lines = (Array.isArray(ui.purchaseCart) ? ui.purchaseCart : [])
+          .map((l) => ({ ...l }))
+          .filter((l) => Number(l.qty) > 0);
         const itemId = (($("#pur-item") || {}).value) || ui.purchaseItem;
         const qty = num(($("#pur-qty") || {}).value);
         const cost = num(($("#pur-cost") || {}).value);
         const item = db.items.find((i) => i.id === itemId);
-        if (qty > 0 && item) lines.push({ itemId: item.id, name: item.name, unit: item.unit, qty, cost: cost || Number(item.buy) || 0 });
-        if (!lines.length) { toast("Add at least one item"); break; }
+        if (qty > 0 && item && !lines.some((l) => l.itemId === item.id)) {
+          lines.push({ itemId: item.id, name: item.name, unit: item.unit, qty, cost: cost || Number(item.buy) || 0 });
+        }
+        if (!lines.length) { toast("Add at least one item to the bill"); break; }
 
-        const amount = Math.round(lines.reduce((t, l) => t + l.qty * l.cost, 0));
-        const paid = ui.purchasePaid !== false;
+        const amount = Math.round(lines.reduce((t, l) => t + Number(l.qty) * Number(l.cost), 0));
+        if (!amount) { toast("This bill has no value — check quantity and cost"); break; }
+        const billDate = (($("#pur-date") || {}).value || "").trim() || ui.purchaseDate || dayKey();
+        const stamp = /^\d{4}-\d{2}-\d{2}$/.test(billDate) ? new Date(`${billDate}T12:00:00`).getTime() : NaN;
+        const paidInFull = ui.purchasePaid !== false;
+        const partPaid = Math.max(0, Math.min(amount, num(($("#pur-paidamount") || {}).value)));
+        const paidAmount = paidInFull ? amount : partPaid;
+        const existing = db.purchases.find((x) => x.id === ui.purchaseEditId) || null;
+        if (existing) {
+          /* stock moves by the difference, so a corrected bill never double-counts */
+          const oldQty = {};
+          existing.lines.forEach((l) => { oldQty[l.itemId] = (oldQty[l.itemId] || 0) + Number(l.qty); });
+          const newQty = {};
+          lines.forEach((l) => { newQty[l.itemId] = (newQty[l.itemId] || 0) + Number(l.qty); });
+          const touched = new Set([...Object.keys(oldQty), ...Object.keys(newQty)]);
+          touched.forEach((itemKey) => {
+            const it = db.items.find((i) => i.id === itemKey);
+            if (!it) return;
+            const delta = (newQty[itemKey] || 0) - (oldQty[itemKey] || 0);
+            if (delta) {
+              it.stock = Math.max(0, Math.round((Number(it.stock) + delta) * 100) / 100);
+              logMove(it, delta, "adjust", `#PUR-${existing.no} corrected`);
+            }
+            const line = lines.find((l) => l.itemId === itemKey);
+            if (line && line.cost > 0) it.buy = line.cost;
+          });
+          Object.assign(existing, {
+            at: Number.isNaN(stamp) ? existing.at : stamp,
+            date: /^\d{4}-\d{2}-\d{2}$/.test(billDate) ? billDate : existing.date,
+            billNo: (($("#pur-billno") || {}).value || "").trim(),
+            notes: (($("#pur-notes") || {}).value || "").trim(),
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            lines,
+            amount,
+            paid: paidAmount >= amount - 0.5,
+            paidAmount,
+          });
+          ui.purchaseCart = [];
+          ui.purchaseEditId = "";
+          ui.purchaseBillNo = "";
+          ui.purchaseNotes = "";
+          ui.purchasePaidAmount = "";
+          ui.purchaseDate = dayKey();
+          persist();
+          logAct("Purchase updated", `#PUR-${existing.no} · now ${money(amount)} · ${supplier.name}`);
+          route(`purchase:${existing.id}`);
+          toast(`Bill #${existing.no} updated · stock corrected`);
+          break;
+        }
         const purchase = {
           id: uid("pu"),
           no: nextPurchaseNo(),
-          at: Date.now(),
-          date: dayKey(),
+          at: Number.isNaN(stamp) ? Date.now() : stamp,
+          date: /^\d{4}-\d{2}-\d{2}$/.test(billDate) ? billDate : dayKey(),
+          billNo: (($("#pur-billno") || {}).value || "").trim(),
+          notes: (($("#pur-notes") || {}).value || "").trim(),
           supplierId: supplier.id,
           supplierName: supplier.name,
           lines,
           amount,
-          paid,
-          paidAmount: paid ? amount : 0,
+          paid: paidAmount >= amount - 0.5,
+          paidAmount,
         };
         db.purchases.unshift(purchase);
 
@@ -4901,10 +5299,36 @@
         });
 
         ui.purchaseCart = [];
+        ui.purchaseBillNo = "";
+        ui.purchaseNotes = "";
+        ui.purchasePaidAmount = "";
+        ui.purchaseDate = dayKey();
+        ui.purchaseQty = 1;
+        ui.purchaseCost = "";
         persist();
-        logAct("Purchase saved", `#PUR-${purchase.no} · ${money(amount)} · ${supplier.name}`);
+        logAct("Purchase saved", `#PUR-${purchase.no}${purchase.billNo ? " · bill " + purchase.billNo : ""} · ${money(amount)} · ${supplier.name}`);
         route(`purchase:${purchase.id}`);
-        toast(`Purchase #${purchase.no} saved · stock updated`);
+        toast(`Purchase bill #${purchase.no} saved · stock updated`);
+        break;
+      }
+      case "copy-purchase": {
+        event.preventDefault();
+        const p = db.purchases.find((x) => x.id === id);
+        if (!p) break;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(purchaseText(p))
+            .then(() => toast("Purchase bill copied"))
+            .catch(() => toast("Couldn't copy — long-press the bill to select it"));
+        } else {
+          toast("Copying isn't allowed here — use Print / PDF");
+        }
+        break;
+      }
+      case "invoice-tab": {
+        event.preventDefault();
+        if (!ui.invoices) ui.invoices = { tab: "all", q: "" };
+        ui.invoices.tab = act.getAttribute("data-tab") || "all";
+        render();
         break;
       }
       case "pay-supplier": {
@@ -5028,8 +5452,11 @@
             go("sale-new");
             toast(`${item.name} added and put on the bill`);
           } else if (back === "purchase") {
+            ui.purchaseItem = item.id;
+            ui.purchaseCost = item.buy || "";
+            ui.purchaseQty = 1;
             go("purchase-new");
-            toast(`${item.name} added — pick it in the purchase line`);
+            toast(`${item.name} added — set the quantity that arrived`);
           } else {
             go("stock");
             toast(`${item.name} added to your catalogue`);
@@ -5181,10 +5608,11 @@
 
   function homeFor(r) {
     const base = r.split(":")[0];
-    return ["sales", "sale"].includes(base) ? "sales"
+    return base === "sales" ? "sales"
+      : ["sale", "invoices"].includes(base) ? "invoices"
       : ["customers", "customer", "customer-new"].includes(base) ? "customers"
       : ["stock", "restock", "item-new", "item-edit"].includes(base) ? "stock"
-      : ["suppliers", "supplier", "supplier-new"].includes(base) ? "suppliers"
+      : ["suppliers", "supplier", "supplier-new", "supplier-edit"].includes(base) ? "suppliers"
       : ["purchases", "purchase", "purchase-new"].includes(base) ? "purchases"
       : "home";
   }
@@ -5200,6 +5628,36 @@
       if (out) out.textContent = money(q * r);
     }
     if (t.id === "voice-text") ui.voice.heard = t.value;
+    if (t.id === "inv-search") {
+      invoiceState().q = t.value;
+      const rowsBox = $("#inv-rows");
+      if (rowsBox) rowsBox.innerHTML = invoiceRowsHtml();
+      const tabsBox = $("#invoice-tabs");
+      if (tabsBox) tabsBox.innerHTML = invoiceTabsHtml();
+      const mBox = $("#inv-metrics");
+      if (mBox) mBox.innerHTML = invoiceMetricsHtml();
+    }
+    if (t.id === "pur-qty") ui.purchaseQty = t.value;
+    if (t.id === "pur-cost") ui.purchaseCost = t.value;
+    if (t.id === "pur-billno") ui.purchaseBillNo = t.value;
+    if (t.id === "pur-notes") ui.purchaseNotes = t.value;
+    if (t.id === "pur-date") ui.purchaseDate = t.value;
+    if (t.id === "pur-paidamount") ui.purchasePaidAmount = t.value;
+    /* typing a new quantity or cost straight into a line of the bill */
+    const rowQty = t.dataset ? t.dataset.purQty : null;
+    const rowCost = t.dataset ? t.dataset.purCost : null;
+    if (rowQty != null || rowCost != null) {
+      const idx = Number(rowQty != null ? rowQty : rowCost);
+      const line = (ui.purchaseCart || [])[idx];
+      if (line) {
+        if (rowQty != null) line.qty = num(t.value);
+        else line.cost = num(t.value);
+        const amt = $(`#pur-line-amt-${idx}`);
+        if (amt) amt.textContent = money(Number(line.qty) * Number(line.cost));
+        const tot = $("#pur-total");
+        if (tot) tot.textContent = money(ui.purchaseCart.reduce((acc, l) => acc + Number(l.qty) * Number(l.cost), 0));
+      }
+    }
   });
 
   document.addEventListener("change", (event) => {
@@ -5226,6 +5684,20 @@
       render();
       const c = $("#sale-customer");
       if (c) c.value = t.value;
+    }
+    if (t.id === "pur-item") {
+      capturePurchaseForm();
+      ui.purchaseItem = t.value;
+      const picked = db.items.find((i) => i.id === t.value);
+      ui.purchaseCost = picked ? (picked.buy || "") : "";
+      render();
+      return;
+    }
+    if (t.id === "pur-supplier") {
+      capturePurchaseForm();
+      ui.purchaseSupplier = t.value;
+      render();
+      return;
     }
     if (t.id === "import-file" && t.files && t.files[0]) importJson(t.files[0]);
     if (t.id === "doc-file" && t.files && t.files[0]) addDocument(t.files[0], null);
@@ -5258,7 +5730,8 @@
   const NAV_ITEMS = [
     { group: "Shop" },
     { route: "home", label: "Dashboard", icon: "home", key: "1" },
-    { route: "sales", label: "Sales", icon: "sales", key: "2" },
+    { route: "sales", label: "Today's sales", icon: "sales", key: "2" },
+    { route: "invoices", label: "Invoices", icon: "receipt" },
     { route: "stock", label: "Products", icon: "box", key: "3" },
     { route: "purchases", label: "Purchases", icon: "truck" },
     { route: "suppliers", label: "Suppliers", icon: "store" },
@@ -5282,10 +5755,11 @@
 
   /* which rail item lights up for a route */
   const NAV_ALIAS = {
-    sale: "sales", "sale-new": "sales", quote: "sales", quotes: "sales",
+    sale: "invoices", "sale-new": "sales", quote: "sales", quotes: "sales",
+    invoices: "invoices",
     restock: "stock", "item-new": "stock", "item-edit": "stock",
     purchase: "purchases", "purchase-new": "purchases",
-    supplier: "suppliers", "supplier-new": "suppliers",
+    supplier: "suppliers", "supplier-new": "suppliers", "supplier-edit": "suppliers",
     customer: "customers", "customer-new": "customers",
     voice: "ask", draft: "ask",
     payment: "payments", expense: "expenses", settings: "more",

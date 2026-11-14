@@ -93,7 +93,7 @@
   .shead { margin-bottom: 4px; }
   .lv-appbar { padding: 0 0 10px; margin-bottom: 6px; }
   /* the rail is the way back from a top-level screen; every nested screen keeps its arrow */
-  body:is([data-route="home"], [data-route="sales"], [data-route="customers"], [data-route="stock"],
+  body:is([data-route="home"], [data-route="sales"], [data-route="invoices"], [data-route="customers"], [data-route="stock"],
           [data-route="purchases"], [data-route="suppliers"], [data-route="payments"],
           [data-route="expenses"], [data-route="reports"], [data-route="profit"],
           [data-route="inventory"], [data-route="documents"], [data-route="ask"],
