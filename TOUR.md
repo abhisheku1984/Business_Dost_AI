@@ -44,6 +44,10 @@ Open **`live.html`** (`http://localhost:4173/live.html`) in Chrome or Edge.
 - **Payments**: More → Payments & outstanding → tap a customer → amount, how it came, record.
 - **GST**: Settings → GST on bills (5/12/18/28) and whether your prices include it. Invoices show
   taxable value, CGST and SGST.
+- **Inventory**: More → Inventory — stock at cost vs selling, plus every movement: sold, received,
+  corrected. On a product, **Correct the count** logs damage/loss with a reason.
+- **Two phones, one shop** (optional): run `python3 sync/server.py`, then in Settings → Cloud sync
+  put the address and a shop code on both phones. See [`sync/README.md`](sync/README.md).
 
 - [ ] My own sale ended up on the dashboard
 - [ ] It survived a reload

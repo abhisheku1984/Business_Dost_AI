@@ -59,6 +59,7 @@ What it does, end to end:
 | **Payments** | Outstanding by customer, record a receipt (cash/UPI/bank/cheque), see recent receipts and what is still owed |
 | **Expenses** | Categories, notes, and they feed straight into profit |
 | **Your data** | Lives in this browser; export/import a JSON file; resets to a sample shop on demand |
+| **Sync** | Optional: point two phones at one small server (`sync/`) and they share the shop — see [`sync/README.md`](sync/README.md) |
 
 **Install it on a phone:** the app has a manifest, icons and an offline cache, so from any `https://`
 address it installs to the home screen (Android: *Install*; iPhone: Share → *Add to Home Screen*) and

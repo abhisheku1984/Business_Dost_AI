@@ -134,6 +134,7 @@
       draft: null,
       quotes: [],
       chat: [],
+      moves: [],
       meta: {},
       settings: { lang: "en-IN", gst: { rate: 0, inclusive: true } },
     };
@@ -152,6 +153,7 @@
       data.draft = data.draft || null;
       data.chat = Array.isArray(data.chat) ? data.chat : [];
       data.quotes = Array.isArray(data.quotes) ? data.quotes : [];
+      data.moves = Array.isArray(data.moves) ? data.moves : [];
 
       /* Data saved before cost prices existed: assume a typical margin rather
          than pretend profit is 100%. The screen says "estimated" when so. */
@@ -182,9 +184,12 @@
   let db = load();
   let storageWarned = false;
 
-  function persist() {
+  function persist(opts) {
     try {
+      db.meta = db.meta || {};
+      db.meta.updatedAt = Date.now();
       localStorage.setItem(KEY, JSON.stringify(db));
+      if (!(opts && opts.skipSync) && typeof scheduleSync === "function") scheduleSync();
     } catch (err) {
       if (!storageWarned) {
         storageWarned = true;
@@ -220,6 +225,26 @@
   const lowStock = () => db.items.filter((i) => Number(i.stock) <= Number(i.low));
   const stockOf = (id) => (db.items.find((i) => i.id === id) || {}).stock || 0;
   const nextNo = () => db.sales.reduce((m, s) => Math.max(m, s.no), 2415) + 1;
+
+  /* every change to a stock number leaves a trail — that is what makes the
+     inventory trustworthy six months later */
+  function logMove(item, qty, type, ref, note) {
+    if (!item || !qty) return;
+    if (!Array.isArray(db.moves)) db.moves = [];
+    db.moves.push({
+      id: uid("m"),
+      at: Date.now(),
+      itemId: item.id,
+      name: item.name,
+      unit: item.unit,
+      type,
+      qty: Math.round(Number(qty) * 100) / 100,
+      after: Math.round(Number(item.stock) * 100) / 100,
+      ref: ref || "",
+      note: note || "",
+    });
+    if (db.moves.length > 400) db.moves = db.moves.slice(-400);
+  }
   const expenseTotal = (key) => sum(db.expenses.filter((e) => e.date === key));
   const expenseIn = (from) => sum(db.expenses.filter((e) => e.date >= from));
 
@@ -361,7 +386,10 @@
     db.sales.unshift(sale);
     built.forEach((l) => {
       const item = db.items.find((i) => i.id === l.itemId);
-      if (item) item.stock = Math.max(0, Math.round((Number(item.stock) - l.qty) * 100) / 100);
+      if (item) {
+        item.stock = Math.max(0, Math.round((Number(item.stock) - l.qty) * 100) / 100);
+        logMove(item, -l.qty, "sale", `#INV-${sale.no}`);
+      }
     });
     persist();
     return sale;
@@ -532,6 +560,7 @@
     voice: { live: false, heard: "", interim: "", typing: false, error: "" },
     sale: { customerId: db.customers[0] ? db.customers[0].id : "", itemId: db.items[0] ? db.items[0].id : "", qty: 1, rate: db.items[0] ? db.items[0].rate : 0, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" },
     profit: { days: 1 },
+    inventory: { tab: "moves" },
     cart: [],
     reports: { days: 7 },
     ask: { typing: false },
@@ -723,6 +752,8 @@
     const delta = y.total ? Math.round(((s.total - y.total) / y.total) * 100) : null;
     const due = totalDue();
     const low = lowStock();
+    const month = monthStats();
+    const follow = followUps();
     const recent = db.sales.slice(0, 3);
     const owner = db.shop.owner.split(/\s+/)[0];
 
@@ -765,6 +796,12 @@
             <div class="lv-metric"><b>${money(due)}</b><span>Udhaar out</span></div>
             <div class="lv-metric"><b>${low.length}</b><span>Low stock</span></div>
             <div class="lv-metric"><b>${money(periodStats(1).net)}</b><span>Profit today</span></div>
+          </div>
+
+          <div class="lv-month">
+            <div class="lv-month__cell"><span>This month</span><b class="num">${money(month.revenue)}</b><small>sales</small></div>
+            <div class="lv-month__cell"><span>Gross profit</span><b class="num">${money(month.gross)}</b><small>before expenses</small></div>
+            <div class="lv-month__cell ${follow.length ? "is-warn" : ""}" data-nav="payments" role="button" tabindex="0"><span>Follow-ups</span><b class="num">${follow.length}</b><small>dues 7d+</small></div>
           </div>
 
           <div class="lv-quick">
@@ -1141,6 +1178,23 @@
               <button class="btn btn--primary" data-act="restock-save" data-id="${item.id}">${icon("plus")} Add to stock</button>
             </div>
             <p class="lv-hintline">Profit is worked out from the cost price — worth keeping honest.</p>
+
+            <div class="section-label" style="margin-top:18px"><span class="section-label__title">Correct the count</span></div>
+            <div class="lv-pair">
+              <div class="lv-field">
+                <span class="lv-label">Actually on the shelf</span>
+                <input class="lv-input lv-input--num" id="stock-count" type="number" inputmode="decimal" min="0" placeholder="${item.stock}" />
+              </div>
+              <div class="lv-field">
+                <span class="lv-label">Why</span>
+                <select class="lv-select" id="stock-reason">
+                  ${["Count correction", "Damage", "Lost", "Returned to supplier", "Sample given"].map((r) => `<option>${r}</option>`).join("")}
+                </select>
+              </div>
+            </div>
+            <div class="lv-actions">
+              <button class="btn btn--outline" data-act="adjust-stock" data-id="${item.id}">${icon("edit")} Save correction</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1885,6 +1939,30 @@
             <button class="btn btn--primary" data-act="save-settings">${icon("check")} Save</button>
           </div>
           <p class="lv-hintline">These details appear on invoices you share.</p>
+
+          <div class="section-label" style="margin-top:22px"><span class="section-label__title">Cloud sync</span>
+            <span class="pill">optional</span>
+          </div>
+          <p class="lv-hintline" style="text-align:left">Without this, the shop lives on this phone only. Point two phones at the same address and shop code and they keep the same books.</p>
+          <div class="lv-field">
+            <span class="lv-label">Sync address</span>
+            <input class="lv-input" id="sync-url" placeholder="https://your-sync-server" value="${esc((db.settings.sync || {}).url || "")}" autocomplete="off" />
+          </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">Shop code</span>
+              <input class="lv-input" id="sync-shop" placeholder="sharma-hardware" value="${esc((db.settings.sync || {}).shop || "")}" autocomplete="off" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Secret</span>
+              <input class="lv-input" id="sync-token" placeholder="optional" value="${esc((db.settings.sync || {}).token || "")}" autocomplete="off" />
+            </div>
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--outline" data-act="sync-save">${icon("cloud")} Save &amp; sync</button>
+            <button class="btn btn--ghost" data-act="sync-now">${icon("refresh")} Sync now</button>
+          </div>
+          <p class="lv-hintline">${esc(syncStatusLine())}</p>
         </div>
       </div>
       ${indicator()}
@@ -2090,6 +2168,222 @@
     </div>`;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* inventory: stock movements, not just a number                       */
+  /* ------------------------------------------------------------------ */
+  function monthStartKey() {
+    const d = new Date();
+    return dayKey(new Date(d.getFullYear(), d.getMonth(), 1));
+  }
+
+  function monthStats() {
+    const from = monthStartKey();
+    const list = db.sales.filter((x) => x.date >= from);
+    const revenue = sum(list);
+    const cost = list.reduce((t, x) => t + saleCost(x), 0);
+    const expenses = sum(db.expenses.filter((e) => e.date >= from));
+    return { list, revenue, cost, expenses, gross: revenue - cost, net: revenue - cost - expenses };
+  }
+
+  /* a customer counts as a follow-up when money has been sitting with them a week or more */
+  function followUps() {
+    const weekAgo = daysAgo(7);
+    return db.customers
+      .map((c) => {
+        const open = db.sales.filter((x) => x.customerId === c.id && x.method === "Udhaar" && x.date <= weekAgo);
+        return { ...c, due: customerDue(c.id), oldest: open.length ? open.map((x) => x.date).sort()[0] : null };
+      })
+      .filter((c) => c.due > 0 && c.oldest)
+      .sort((a, b) => b.due - a.due);
+  }
+
+  const MOVE_LABEL = {
+    sale: ["Sold", "lv-move--out"],
+    restock: ["Received", "lv-move--in"],
+    return: ["Returned", "lv-move--in"],
+    adjust: ["Corrected", "lv-move--adj"],
+    open: ["Opening", "lv-move--in"],
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* cloud sync (optional)                                              */
+  /* Everything still works with no server. Point it at one and two      */
+  /* phones keep the same shop: newest edit wins, nothing appended is    */
+  /* ever thrown away.                                                   */
+  /* ------------------------------------------------------------------ */
+  const syncCfg = () => {
+    db.settings.sync = db.settings.sync || { url: "", shop: "", token: "", lastSync: 0 };
+    return db.settings.sync;
+  };
+  const syncReady = () => {
+    const c = syncCfg();
+    return Boolean(c.url && c.shop);
+  };
+  const syncBase = (url) => String(url || "").trim().replace(/\/+$/, "");
+
+  function mergeDocs(local, remote) {
+    if (!remote || typeof remote !== "object") return local;
+    const localNewer = (Number(local.meta && local.meta.updatedAt) || 0) >= (Number(remote.meta && remote.meta.updatedAt) || 0);
+    const newer = localNewer ? local : remote;
+    const older = localNewer ? remote : local;
+    const out = { ...older, ...newer };
+
+    /* lists are appended to, so take the union; on a clash the newer side wins */
+    ["items", "customers", "sales", "payments", "expenses", "quotes", "moves"].forEach((key) => {
+      const a = Array.isArray(newer[key]) ? newer[key] : [];
+      const b = Array.isArray(older[key]) ? older[key] : [];
+      const byId = new Map();
+      b.forEach((row) => byId.set(row.id, row));
+      a.forEach((row) => byId.set(row.id, row));
+      out[key] = [...byId.values()];
+    });
+
+    out.sales.sort((x, y) => (y.at || 0) - (x.at || 0));
+    out.quotes.sort((x, y) => (y.at || 0) - (x.at || 0));
+    out.moves.sort((x, y) => (x.at || 0) - (y.at || 0));
+
+    /* never carry a sync address from another device */
+    out.settings = { ...(out.settings || {}), sync: syncCfg() };
+    out.shop = { ...(out.shop || {}), ...((newer.shop) || {}) };
+    return out;
+  }
+
+  async function syncPush() {
+    const cfg = syncCfg();
+    if (!syncReady()) return false;
+    try {
+      const res = await fetch(`${syncBase(cfg.url)}/push`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          shop: cfg.shop,
+          token: cfg.token,
+          doc: db,
+          updatedAt: Number(db.meta && db.meta.updatedAt) || Date.now(),
+        }),
+      });
+      if (!res.ok) throw new Error(`server said ${res.status}`);
+      await res.json().catch(() => ({}));
+      cfg.lastSync = Date.now();
+      persist({ skipSync: true });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function syncNow(showToast = true) {
+    const cfg = syncCfg();
+    if (!syncReady()) {
+      if (showToast) toast("Add your sync address and shop code first");
+      return;
+    }
+    try {
+      const res = await fetch(`${syncBase(cfg.url)}/pull`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ shop: cfg.shop, token: cfg.token }),
+      });
+      if (!res.ok) throw new Error(`server said ${res.status}`);
+      const remote = await res.json();
+      const merged = mergeDocs(db, remote && remote.doc ? remote.doc : null);
+      const changed = JSON.stringify(merged.sales || []) !== JSON.stringify(db.sales || []) ||
+        JSON.stringify(merged.items || []) !== JSON.stringify(db.items || []);
+
+      db = merged;
+      db.meta = db.meta || {};
+      db.meta.updatedAt = Date.now();
+      persist({ skipSync: true });
+      cfg.lastSync = Date.now();
+      render();
+      await syncPush();
+      if (showToast) {
+        toast(changed
+          ? `Synced · ${db.sales.length} sales, ${db.items.length} products on this phone`
+          : "Already up to date");
+      }
+    } catch (err) {
+      if (showToast) toast("Couldn't reach the sync server — your work is still saved here");
+    }
+  }
+
+  let syncTimer = 0;
+  function scheduleSync() {
+    if (!syncReady()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => { syncPush(); }, 4000);
+  }
+
+  function syncStatusLine() {
+    const cfg = syncCfg();
+    if (!syncReady()) return "Off — everything stays on this device.";
+    if (!cfg.lastSync) return "Connected — not synced yet.";
+    const mins = Math.round((Date.now() - cfg.lastSync) / 60000);
+    return mins < 1 ? "Synced just now." : `Last synced ${mins} min ago.`;
+  }
+
+  function viewInventory() {
+    const tab = ui.inventory.tab || "moves";
+    const stockCost = db.items.reduce((t, i) => t + i.stock * (Number(i.buy) || 0), 0);
+    const stockRetail = db.items.reduce((t, i) => t + i.stock * i.rate, 0);
+    const moves = db.moves.slice().sort((a, b) => b.at - a.at).slice(0, 40);
+
+    const moveRow = (m) => {
+      const [label, cls] = MOVE_LABEL[m.type] || ["Changed", ""];
+      return `<div class="lv-move">
+        <div class="lv-move__main">
+          <b>${esc(m.name)}</b>
+          <small>${label}${m.ref ? " · " + esc(m.ref) : ""}${m.note ? " · " + esc(m.note) : ""}</small>
+          <small class="lv-move__when">${new Date(m.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${clock(m.at)}</small>
+        </div>
+        <div class="lv-move__end">
+          <b class="num ${cls}">${m.qty > 0 ? "+" : ""}${m.qty}</b>
+          <small>${m.after} ${esc(m.unit || "")} left</small>
+        </div>
+      </div>`;
+    };
+
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll screen__scroll--tabbar">
+        <div class="shead">
+          <div class="shead__row"><h1 class="t-title1">Inventory</h1></div>
+          <p class="shead__sub t-subhead">Every sale, delivery and correction is written down — so a wrong count can always be traced.</p>
+        </div>
+        <div class="sbody">
+          <div class="lv-cards">
+            <div class="lv-metric"><b class="num">${money(stockCost)}</b><span>Stock at cost</span></div>
+            <div class="lv-metric"><b class="num">${money(stockRetail)}</b><span>Stock at selling</span></div>
+          </div>
+
+          <div class="lv-seg" style="margin-top:14px">
+            <button data-act="inv-tab" data-tab="moves" class="${tab === "moves" ? "is-on" : ""}">Movements</button>
+            <button data-act="inv-tab" data-tab="items" class="${tab === "items" ? "is-on" : ""}">Items</button>
+          </div>
+
+          ${tab === "moves"
+            ? (moves.length
+              ? `<div class="lv-moves">${moves.map(moveRow).join("")}</div>`
+              : `<div class="lv-empty">No movements yet. Sell something, or receive a delivery.</div>`)
+            : `<div class="people">${db.items.map((i) => `<button class="lv-row-btn" data-nav="restock:${i.id}">
+                <span class="icon-tile ${Number(i.stock) <= Number(i.low) ? "icon-tile--sand" : "icon-tile--brand"}">${icon("box")}</span>
+                <span class="row__body">
+                  <span class="lv-row-title">${esc(i.name)}</span>
+                  <span class="lv-row-sub">${money(i.rate)} / ${i.unit} · low at ${i.low}</span>
+                </span>
+                <span class="row__end"><span class="lv-row-amount">${i.stock}</span></span>
+              </button>`).join("")}</div>`}
+
+          <div class="lv-actions" style="margin-top:16px">
+            <button class="btn btn--outline" data-act="new-item">${icon("plus")} Add a product</button>
+          </div>
+        </div>
+      </div>
+      ${tabbar("more")}
+      ${indicator()}
+    </div>`;
+  }
+
   function viewMore() {
     const dataSize = (() => {
       try { return (JSON.stringify(db).length / 1024).toFixed(1) + " KB"; } catch (e) { return "—"; }
@@ -2106,6 +2400,10 @@
             <a class="lv-data-row lv-data-row--link" data-nav="profit">
               <div><b>Profit</b><small>What you actually made, after cost and expenses</small></div>
               <span class="pill pill--success">${money(periodStats(1).net)}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="inventory">
+              <div><b>Inventory</b><small>Stock on the shelf and every movement behind it</small></div>
+              ${icon("chevron-right")}
             </a>
             <a class="lv-data-row lv-data-row--link" data-nav="quotes">
               <div><b>Quotations</b><small>Prices you promised, ready to become bills</small></div>
@@ -2199,6 +2497,7 @@
     else if (base === "quote") html = viewQuote(id);
     else if (base === "payments") html = viewPayments();
     else if (base === "payment") html = viewPayment(id);
+    else if (base === "inventory") html = viewInventory();
     else if (base === "sale-new") html = viewNewSale();
     else if (base === "expense") html = viewExpense();
     else if (base === "voice") html = viewVoice();
@@ -2566,6 +2865,21 @@
         toast("Shop details saved");
         break;
       }
+      case "sync-save": {
+        event.preventDefault();
+        const cfg = syncCfg();
+        cfg.url = (($("#sync-url") || {}).value || "").trim();
+        cfg.shop = (($("#sync-shop") || {}).value || "").trim().toLowerCase();
+        cfg.token = (($("#sync-token") || {}).value || "").trim();
+        persist({ skipSync: true });
+        if (!syncReady()) { toast("Sync is off — nothing leaves this phone"); render(); break; }
+        syncNow(true);
+        break;
+      }
+      case "sync-now":
+        event.preventDefault();
+        syncNow(true);
+        break;
       case "share-invoice": {
         event.preventDefault();
         const sale = db.sales.find((x) => x.id === id);
@@ -2633,11 +2947,34 @@
         db.sales = db.sales.filter((s) => s.id !== id);
         sale.lines.forEach((l) => {
           const item = db.items.find((i) => i.id === l.itemId);
-          if (item) item.stock = Math.round((Number(item.stock) + Number(l.qty)) * 100) / 100;
+          if (item) {
+            item.stock = Math.round((Number(item.stock) + Number(l.qty)) * 100) / 100;
+            logMove(item, l.qty, "return", `#INV-${sale.no} deleted`);
+          }
         });
         persist();
         go("sales");
         toast("Sale deleted · stock restored");
+        break;
+      }
+      case "inv-tab":
+        event.preventDefault();
+        ui.inventory.tab = act.getAttribute("data-tab") === "items" ? "items" : "moves";
+        render();
+        break;
+      case "adjust-stock": {
+        event.preventDefault();
+        const item = db.items.find((i) => i.id === id);
+        if (!item) break;
+        const counted = num(($("#stock-count") || {}).value);
+        const reason = (($("#stock-reason") || {}).value) || "Count correction";
+        const diff = Math.round((counted - Number(item.stock)) * 100) / 100;
+        if (!diff) { toast("That matches the books — nothing to change"); break; }
+        item.stock = counted;
+        logMove(item, diff, "adjust", reason);
+        persist();
+        go("inventory");
+        toast(`Stock corrected · ${diff > 0 ? "+" : ""}${diff} ${item.unit}`);
         break;
       }
       case "sale-mode": {
@@ -2781,6 +3118,7 @@
         } else {
           const item = { id: uid("it"), name: titleCase(name), unit, rate, buy: buy || Math.round(rate * 0.88), stock, low: low || 10 };
           db.items.push(item);
+          logMove(item, stock, "open", "Opening stock");
           persist();
           go("stock");
           toast(`${item.name} added to your catalogue`);
@@ -2825,6 +3163,7 @@
         item.stock = Math.round((Number(item.stock) + add) * 100) / 100;
         if (cost > 0) item.buy = cost;
         if (sell > 0) item.rate = sell;
+        logMove(item, add, "restock", "Delivery");
         persist();
         go("stock");
         toast(`+${add} ${item.unit} ${item.name}`);
@@ -3032,9 +3371,16 @@
     get db() { return db; },
     save: persist,
     addSale,
+    syncNow,
+    mergeDocs,
     reset: () => { db = seed(); persist(); route("home"); },
     version: "1.0",
   };
+
+  if (syncReady()) {
+    /* a quiet pull on open, so this phone starts from the shared books */
+    syncNow(false);
+  }
 
   if (db.draft) go("draft");
   else {
