@@ -19,6 +19,10 @@ No build step and no network needed — all fonts and icons are local.
 - **Run it on your computer:** see [`RUN.md`](RUN.md) — double-click `design/index.html`, or use the
   one-click launcher (`run.bat`, `run.command`, `run.sh`).
 - **Terminal:** `python3 -m http.server 4173 --directory design` then open <http://localhost:4173>.
+- **Get the files onto your machine:** the review is on the branch `arena/6f2ae4dd-business-dost-ai`
+  (a plain clone gives you `main`, which does not have it yet) —
+  `git clone -b arena/6f2ae4dd-business-dost-ai https://github.com/abhisheku1984/Business_Dost_AI.git`
+  — or download that branch as a ZIP from GitHub. Full steps in [`RUN.md`](RUN.md).
 
 The page works offline and is designed for both desktop review and a 390 px phone.
 

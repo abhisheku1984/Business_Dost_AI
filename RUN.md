@@ -40,18 +40,39 @@ The launcher uses port `4173`; to use another port: `PORT=5000 ./run.sh`.
 
 ## Option 3 — get the files
 
+The review lives on the branch **`arena/6f2ae4dd-business-dost-ai`**. A plain clone lands on `main`,
+which does not have the review site yet — so either clone the branch directly, or check it out after.
+
+**One command (copy-paste) — brings the branch with it:**
+
 ```bash
-git clone https://github.com/abhisheku1984/Business_Dost_AI.git
+git clone -b arena/6f2ae4dd-business-dost-ai https://github.com/abhisheku1984/Business_Dost_AI.git
 cd Business_Dost_AI
 ```
 
-The review is on the branch `arena/6f2ae4dd-business-dost-ai`:
+**Or clone first, then switch:**
 
 ```bash
+git clone https://github.com/abhisheku1984/Business_Dost_AI.git
+cd Business_Dost_AI
 git checkout arena/6f2ae4dd-business-dost-ai
 ```
 
-Or download the branch as a ZIP from GitHub → **Code → Download ZIP**, then unzip it.
+**No Git at all:** open <https://github.com/abhisheku1984/Business_Dost_AI>, switch the branch
+dropdown from **main** to **arena/6f2ae4dd-business-dost-ai**, then **Code → Download ZIP**, unzip,
+and open `design/index.html` (Option 1) or run the launcher (Option 2).
+
+### Then what
+
+| I want to… | Do |
+| --- | --- |
+| see the review site | open `design/index.html`, or double-click `run.bat` / `run.command` / `./run.sh` |
+| watch the demo | open `design/demo.html` (plays itself), or `demo/business-dost-demo.mp4` |
+| move the folder elsewhere | it is self-contained — copy the whole folder; keep `design/assets/fonts/` with it |
+| get my later changes again | `git pull` inside the folder, on the same branch |
+
+Nothing to install: no Node, no npm, no build. Python is only used by the launcher to serve the
+folder over `http://localhost:4173` (`python3 -m http.server`), and it is optional.
 
 ---
 
