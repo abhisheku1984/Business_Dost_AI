@@ -89,11 +89,11 @@
   function seed() {
     const today = dayKey();
     const items = [
-      { id: "it1", name: "Cement OPC 53", unit: "bag", rate: 350, stock: 208, low: 40 },
-      { id: "it2", name: "TMT Bar 12mm", unit: "kg", rate: 68, stock: 1160, low: 200 },
-      { id: "it3", name: "Asian Paint 20L", unit: "bucket", rate: 3200, stock: 3, low: 5 },
-      { id: "it4", name: "PVC Pipe 1 inch", unit: "piece", rate: 120, stock: 86, low: 20 },
-      { id: "it5", name: "Wire 90m coil", unit: "coil", rate: 1450, stock: 24, low: 6 },
+      { id: "it1", name: "Cement OPC 53", unit: "bag", rate: 350, buy: 312, stock: 208, low: 40 },
+      { id: "it2", name: "TMT Bar 12mm", unit: "kg", rate: 68, buy: 61, stock: 1160, low: 200 },
+      { id: "it3", name: "Asian Paint 20L", unit: "bucket", rate: 3200, buy: 2860, stock: 3, low: 5 },
+      { id: "it4", name: "PVC Pipe 1 inch", unit: "piece", rate: 120, buy: 98, stock: 86, low: 20 },
+      { id: "it5", name: "Wire 90m coil", unit: "coil", rate: 1450, buy: 1290, stock: 24, low: 6 },
     ];
     const customers = [
       { id: "c1", name: "Ramesh Kumar", phone: "98200 11223" },
@@ -111,8 +111,9 @@
         at: Date.now() - hoursAgo * 36e5,
         customerId,
         customerName: cu.name,
-        lines: [{ itemId, name: it.name, qty, rate: it.rate, unit: it.unit }],
+        lines: [{ itemId, name: it.name, qty, rate: it.rate, unit: it.unit, cost: it.buy }],
         amount: qty * it.rate,
+        cost: qty * it.buy,
         method,
         paid: method !== "Udhaar",
       };
@@ -131,6 +132,8 @@
       payments: [],
       expenses: [{ id: "e1", date: today, at: Date.now() - 3 * 36e5, amount: 300, category: "Transport", note: "Tempo to site" }],
       draft: null,
+      chat: [],
+      meta: {},
       settings: { lang: "en-IN" },
     };
   }
@@ -145,6 +148,28 @@
       data.payments = data.payments || [];
       data.expenses = data.expenses || [];
       data.draft = data.draft || null;
+      data.chat = Array.isArray(data.chat) ? data.chat : [];
+
+      /* Data saved before cost prices existed: assume a typical margin rather
+         than pretend profit is 100%. The screen says "estimated" when so. */
+      let assumed = false;
+      data.items.forEach((it) => {
+        if (!Number(it.buy) || Number(it.buy) <= 0) {
+          it.buy = Math.round(Number(it.rate) * 0.88);
+          if (it.rate) assumed = true;
+        }
+      });
+      data.sales.forEach((sale) => {
+        if (typeof sale.cost !== "number") {
+          sale.cost = sale.lines.reduce((t, l) => {
+            if (l.cost != null) return t + l.cost * l.qty;
+            const it = data.items.find((i) => i.id === l.itemId);
+            return t + (it ? it.buy * l.qty : 0);
+          }, 0);
+        }
+      });
+      data.meta = data.meta || {};
+      if (assumed) data.meta.assumedCost = true;
       return data;
     } catch (err) {
       return seed();
@@ -193,6 +218,81 @@
   const stockOf = (id) => (db.items.find((i) => i.id === id) || {}).stock || 0;
   const nextNo = () => db.sales.reduce((m, s) => Math.max(m, s.no), 2415) + 1;
   const expenseTotal = (key) => sum(db.expenses.filter((e) => e.date === key));
+  const expenseIn = (from) => sum(db.expenses.filter((e) => e.date >= from));
+
+  const itemCost = (id) => {
+    const it = db.items.find((i) => i.id === id);
+    return it && Number(it.buy) ? Number(it.buy) : 0;
+  };
+
+  /* What a sale cost us. Older records have no stored cost — fall back to the
+     product's buying price, and to zero if we never knew it (never invent a cost). */
+  function saleCost(sale) {
+    if (typeof sale.cost === "number") return sale.cost;
+    return sale.lines.reduce((t, l) => t + (l.cost != null ? l.cost * l.qty : itemCost(l.itemId) * l.qty), 0);
+  }
+
+  function periodStats(days, offset = 0) {
+    const from = daysAgo(Math.max(0, days - 1 + offset));
+    const to = daysAgo(offset);
+    const list = db.sales.filter((x) => x.date >= from && x.date <= to);
+    const revenue = sum(list);
+    const cost = list.reduce((t, x) => t + saleCost(x), 0);
+    const expenses = sum(db.expenses.filter((e) => e.date >= from && e.date <= to));
+    const gross = revenue - cost;
+    const net = gross - expenses;
+    return {
+      from, list, revenue, cost, expenses, gross, net,
+      orders: list.length,
+      avg: list.length ? revenue / list.length : 0,
+      margin: revenue ? Math.round((net / revenue) * 100) : 0,
+      cash: sum(list.filter((x) => x.method === "Cash")),
+      upi: sum(list.filter((x) => x.method === "UPI")),
+      udhaar: sum(list.filter((x) => x.method === "Udhaar")),
+    };
+  }
+
+  function productProfit(days, offset = 0) {
+    const from = daysAgo(Math.max(0, days - 1 + offset));
+    const to = daysAgo(offset);
+    const map = new Map();
+    db.sales.filter((x) => x.date >= from && x.date <= to).forEach((sale) => {
+      sale.lines.forEach((l) => {
+        const row = map.get(l.itemId) || { id: l.itemId, name: l.name, qty: 0, revenue: 0, profit: 0 };
+        const unitCost = l.cost != null ? l.cost : itemCost(l.itemId);
+        row.qty += l.qty;
+        row.revenue += l.qty * l.rate;
+        row.profit += l.qty * (l.rate - unitCost);
+        map.set(l.itemId, row);
+      });
+    });
+    return [...map.values()].sort((a, b) => b.profit - a.profit);
+  }
+
+  function customerTotals(days, offset = 0) {
+    const from = daysAgo(Math.max(0, days - 1 + offset));
+    const to = daysAgo(offset);
+    const map = new Map();
+    db.sales.filter((x) => x.date >= from && x.date <= to).forEach((sale) => {
+      const row = map.get(sale.customerId) || { id: sale.customerId, name: sale.customerName, orders: 0, value: 0 };
+      row.orders += 1;
+      row.value += sale.amount;
+      map.set(sale.customerId, row);
+    });
+    return [...map.values()].sort((a, b) => b.value - a.value);
+  }
+
+  function expenseByCategory(days, offset = 0) {
+    const from = daysAgo(Math.max(0, days - 1 + offset));
+    const to = daysAgo(offset);
+    const map = new Map();
+    db.expenses.filter((e) => e.date >= from && e.date <= to).forEach((e) => {
+      const row = map.get(e.category) || { name: e.category, value: 0 };
+      row.value += e.amount;
+      map.set(e.category, row);
+    });
+    return [...map.values()].sort((a, b) => b.value - a.value);
+  }
 
   function addSale({ customerId, customerName, itemId, qty, rate, method }) {
     const item = db.items.find((i) => i.id === itemId);
@@ -209,8 +309,9 @@
       at: Date.now(),
       customerId: cust.id,
       customerName: cust.name,
-      lines: [{ itemId, name: item.name, qty: q, rate: r, unit: item.unit }],
+      lines: [{ itemId, name: item.name, qty: q, rate: r, unit: item.unit, cost: Number(item.buy) || 0 }],
       amount,
+      cost: Math.round(q * (Number(item.buy) || 0)),
       method: method || "UPI",
  	    paid: (method || "UPI") !== "Udhaar",
     };
@@ -384,6 +485,9 @@
     route: "home",
     voice: { live: false, heard: "", interim: "", typing: false, error: "" },
     sale: { customerId: db.customers[0] ? db.customers[0].id : "", itemId: db.items[0] ? db.items[0].id : "", qty: 1, rate: db.items[0] ? db.items[0].rate : 0, method: "UPI", newCustomer: "", newItemName: "", newItemUnit: "bag", newItemStock: "" },
+    profit: { days: 1 },
+    reports: { days: 7 },
+    ask: { typing: false },
   };
 
   let toastTimer = 0;
@@ -613,15 +717,24 @@
           <div class="lv-metrics">
             <div class="lv-metric"><b>${money(due)}</b><span>Udhaar out</span></div>
             <div class="lv-metric"><b>${low.length}</b><span>Low stock</span></div>
-            <div class="lv-metric"><b>${money(expenseTotal(dayKey()))}</b><span>Spent today</span></div>
+            <div class="lv-metric"><b>${money(periodStats(1).net)}</b><span>Profit today</span></div>
           </div>
 
           <div class="lv-quick">
             <button data-act="newsale"><span class="lv-tile lv-tile--brand">${icon("plus")}</span>New sale</button>
             <button data-act="expense"><span class="lv-tile">${icon("wallet")}</span>Expense</button>
             <button data-nav="stock"><span class="lv-tile">${icon("box")}</span>Stock</button>
-            <button data-nav="voice"><span class="lv-tile lv-tile--ai">${icon("ai")}</span>Ask Dost</button>
+            <button data-nav="profit"><span class="lv-tile lv-tile--ai">${icon("chart")}</span>Profit</button>
           </div>
+
+          <button class="lv-askcard" data-nav="ask">
+            <span class="lv-askcard__icon">${icon("ai")}</span>
+            <span class="lv-askcard__text">
+              <b>Ask Dost anything</b>
+              <small>“Who owes me money?” · “How much profit today?”</small>
+            </span>
+            ${icon("chevron-right", "lv-askcard__chev")}
+          </button>
 
           ${draftBanner()}
 
@@ -678,6 +791,26 @@
     </div>`;
   }
 
+  function invoiceText(sale) {
+    const lines = sale.lines
+      .map((l) => `${l.name} — ${l.qty} ${l.unit || ""} × ${money(l.rate)} = ${money(l.qty * l.rate)}`)
+      .join("\n");
+    const date = new Date(sale.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    return [
+      `*${db.shop.name}*`,
+      db.shop.gstin ? `GSTIN ${db.shop.gstin}` : "",
+      db.shop.phone ? `Ph ${db.shop.phone}` : "",
+      "",
+      `Invoice #${sale.no} · ${date}`,
+      `To: ${sale.customerName}`,
+      "",
+      lines,
+      "",
+      `*Total: ${money(sale.amount)}*`,
+      sale.paid ? `Paid by ${sale.method}. Thank you!` : `On udhaar — ${money(customerDue(sale.customerId))} pending in all.`,
+    ].filter(Boolean).join("\n");
+  }
+
   function viewSale(id) {
     const sale = db.sales.find((s) => s.id === id);
     if (!sale) return viewSales();
@@ -702,8 +835,10 @@
           <section class="invoice-card">
             <div class="lr-head">
               <div>
-                <div class="lr-cust">${esc(sale.customerName)}</div>
-                <div class="lr-meta">${new Date(sale.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${clock(sale.at)} · ${esc(sale.method)}</div>
+                <div class="lr-shop">${esc(db.shop.name)}</div>
+                <div class="lr-meta">${db.shop.gstin ? "GSTIN " + esc(db.shop.gstin) + " · " : ""}Invoice #${sale.no}</div>
+                <div class="lr-cust" style="margin-top:6px">${esc(sale.customerName)}</div>
+                <div class="lr-meta">${new Date(sale.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · ${clock(sale.at)} · ${esc(sale.method)}</div>
               </div>
               <div class="lr-total">${money(sale.amount)}</div>
             </div>
@@ -711,8 +846,12 @@
             <div class="lr-sum"><span>Total</span><b>${money(sale.amount)}</b></div>
           </section>
           <div class="lv-actions" style="margin-top:14px">
-            <button class="btn btn--outline" data-act="delete-sale" data-id="${sale.id}">${icon("trash")} Delete this sale (stock comes back)</button>
-            <button class="btn btn--ghost" data-act="back">Back to sales</button>
+            <button class="btn btn--primary" data-act="share-invoice" data-id="${sale.id}">${icon("message")} Send on WhatsApp</button>
+            <div class="lv-pair">
+              <button class="btn btn--outline" data-act="print-invoice">${icon("download")} Print / PDF</button>
+              <button class="btn btn--outline" data-act="copy-invoice" data-id="${sale.id}">${icon("edit")} Copy text</button>
+            </div>
+            <button class="btn btn--danger" data-act="delete-sale" data-id="${sale.id}">${icon("trash")} Delete this sale (stock comes back)</button>
           </div>
         </div>
       </div>
@@ -800,7 +939,7 @@
           <span class="icon-tile ${low ? "icon-tile--sand" : "icon-tile--brand"}">${icon("box")}</span>
           <span class="row__body">
             <span class="lv-row-title">${esc(i.name)}</span>
-            <span class="lv-row-sub">${money(i.rate)} / ${i.unit} · low at ${i.low}</span>
+            <span class="lv-row-sub">${money(i.rate)} / ${i.unit}${Number(i.buy) ? " · cost " + money(i.buy) : ""} · low at ${i.low}</span>
           </span>
           <span class="row__end">
             <span class="lv-row-amount">${i.stock}</span>
@@ -864,13 +1003,17 @@
           </div>
           <div class="lv-pair">
             <div class="lv-field">
+              <span class="lv-label">Cost price</span>
+              <input class="lv-input lv-input--num" id="item-cost" type="number" inputmode="decimal" min="0" placeholder="what you pay" value="${v.buy == null ? "" : v.buy}" />
+            </div>
+            <div class="lv-field">
               <span class="lv-label">${editing ? "In stock" : "Opening stock"}</span>
               <input class="lv-input lv-input--num" id="item-stock" type="number" inputmode="decimal" min="0" value="${v.stock}" />
             </div>
-            <div class="lv-field">
-              <span class="lv-label">Alert below</span>
-              <input class="lv-input lv-input--num" id="item-low" type="number" inputmode="decimal" min="0" value="${v.low}" />
-            </div>
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Alert me below ${v.low} ${v.unit} left</span>
+            <input class="lv-input lv-input--num" id="item-low" type="number" inputmode="decimal" min="0" value="${v.low}" />
           </div>
           <div class="lv-actions">
             <button class="btn btn--primary" data-act="save-item" data-id="${editing ? item.id : ""}">${icon("check")} ${editing ? "Save changes" : "Add product"}</button>
@@ -933,14 +1076,18 @@
                 <input class="lv-input lv-input--num" id="stock-add" type="number" inputmode="decimal" placeholder="e.g. 50" value="" />
               </div>
               <div class="lv-field">
-                <span class="lv-label">Buying rate</span>
-                <input class="lv-input lv-input--num" id="stock-rate" type="number" inputmode="decimal" value="${item.rate}" />
+                <span class="lv-label">Cost price</span>
+                <input class="lv-input lv-input--num" id="stock-rate" type="number" inputmode="decimal" value="${item.buy || ""}" />
               </div>
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">Selling rate</span>
+              <input class="lv-input lv-input--num" id="stock-sell" type="number" inputmode="decimal" value="${item.rate}" />
             </div>
             <div class="lv-actions">
               <button class="btn btn--primary" data-act="restock-save" data-id="${item.id}">${icon("plus")} Add to stock</button>
             </div>
-            <p class="lv-hintline">Adds a purchase at the buying rate and updates the selling price you see in New sale.</p>
+            <p class="lv-hintline">Profit is worked out from the cost price — worth keeping honest.</p>
           </div>
         </div>
       </div>
@@ -1095,6 +1242,7 @@
                  <button class="btn btn--outline btn--sm" data-act="type">${icon("keyboard")} Type instead</button>
                  <button class="btn btn--primary btn--sm" data-act="mic">${v.live ? icon("pause") + " Stop" : icon("mic") + " Speak"}</button>
                </div>`}
+          <button class="lv-linkbtn" data-nav="ask">${icon("message")} Ask a question instead</button>
           <p class="lv-hintline" style="color:rgba(234,246,242,.45)">${SR ? "Uses your browser's speech recognition · " + langLabel() : "No speech recognition in this browser — typing works the same"}</p>
         </div>
       </div>
@@ -1164,6 +1312,478 @@
     </div>`;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* profit                                                             */
+  /* ------------------------------------------------------------------ */
+  const PERIODS = [
+    { days: 1, label: "Today" },
+    { days: 7, label: "7 days" },
+    { days: 30, label: "30 days" },
+  ];
+  const whenLabel = (d) => (d === 1 ? "today" : d === 7 ? "last 7 days" : "last 30 days");
+
+  function lastDays(n) {
+    const out = [];
+    for (let i = n - 1; i >= 0; i -= 1) {
+      const d = new Date(Date.now() - i * 864e5);
+      out.push({ key: dayKey(d), short: d.toLocaleDateString("en-IN", { day: "numeric" }) });
+    }
+    return out;
+  }
+
+  function barChart(values, labels, height = 64) {
+    const max = Math.max(1, ...values);
+    return `<div class="lv-bars" style="height:${height}px">
+        ${values.map((v, i) => `<span class="lv-bars__col ${v ? "" : "is-zero"}" title="${labels[i]} · ${money(v)}"><i style="${v ? "height:" + Math.max(4, Math.round((v / max) * 100)) + "%" : "height:2px"}"></i></span>`).join("")}
+      </div>
+      <div class="lv-bars__axis">${labels.map((l) => `<span>${l}</span>`).join("")}</div>`;
+  }
+
+  function viewProfit() {
+    const days = ui.profit.days;
+    const st = periodStats(days);
+    const products = productProfit(days).slice(0, 4);
+    const best = products.length ? products[0] : null;
+    const assumed = Boolean(db.meta && db.meta.assumedCost);
+    const maxProfit = Math.max(1, ...products.map((p) => p.profit));
+
+    const row = (label, value, opts = {}) => `<div class="lv-ledger__row ${opts.total ? "lv-ledger__row--total" : ""}">
+        <span>${label}</span><b class="num">${opts.neg ? "−" : ""}${money(value)}</b>
+      </div>`;
+
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Profit</h1>
+        </div>
+        <div class="sbody">
+          <div class="lv-seg">
+            ${PERIODS.map((p) => `<button data-act="profit-days" data-days="${p.days}" class="${days === p.days ? "is-on" : ""}">${p.label}</button>`).join("")}
+          </div>
+
+          <section class="lv-profit ${st.net < 0 ? "is-loss" : ""}">
+            <div class="lv-profit__label">Net profit · ${whenLabel(days)}</div>
+            <div class="lv-profit__value num">${st.net < 0 ? "−" : ""}${money(Math.abs(st.net))}</div>
+            <div class="lv-profit__sub">${st.orders} ${st.orders === 1 ? "order" : "orders"} · margin ${st.margin}% · after ${money(st.expenses)} of expenses</div>
+            <div class="lv-profit__spark">${barChart(lastDays(Math.min(14, Math.max(7, days))).map((d) => sum(db.sales.filter((x) => x.date === d.key))), lastDays(Math.min(14, Math.max(7, days))).map((d) => d.short), 46)}</div>
+          </section>
+
+          <div class="lv-ledger">
+            ${row("Sales", st.revenue)}
+            ${row("Cost of goods", st.cost, { neg: true })}
+            ${row("Gross profit", st.gross, { total: true })}
+            ${row("Expenses", st.expenses, { neg: true })}
+            ${row("Net profit", st.net, { total: true })}
+          </div>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">What made the money</span>
+            <span class="section-label__action" data-nav="reports" role="button" tabindex="0">Reports</span>
+          </div>
+          <div class="people" style="margin-top:8px">
+            ${products.length ? products.map((p) => `<div class="lv-data-row">
+                <div>
+                  <b>${esc(p.name)}</b>
+                  <small>${p.qty} sold · ${money(p.revenue)} in, ${money(p.profit)} profit</small>
+                  <span class="lv-minibar"><i style="width:${Math.max(4, Math.round((p.profit / maxProfit) * 100))}%"></i></span>
+                </div>
+                <b class="num" style="color:var(--success)">${money(p.profit)}</b>
+              </div>`).join("") : `<div class="lv-empty">Nothing sold in this period yet.</div>`}
+          </div>
+
+          ${best ? `<p class="lv-hintline" style="text-align:left">${esc(best.name)} is your most profitable line — ${money(best.profit)} of the ${money(st.gross)} gross profit.</p>` : ""}
+          ${assumed ? `<div class="lv-note">${icon("info")} <span>Some cost prices were never entered, so I assumed an 88% cost. Tap a product in Stock and set its cost price for exact profit.</span></div>` : ""}
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* reports                                                            */
+  /* ------------------------------------------------------------------ */
+  function viewReports() {
+    const days = ui.reports.days;
+    const st = periodStats(days);
+    const rows = lastDays(14);
+    const values = rows.map((d) => sum(db.sales.filter((x) => x.date === d.key)));
+    const products = productProfit(days);
+    const maxProduct = Math.max(1, ...products.map((p) => p.revenue));
+    const customers = customerTotals(days).slice(0, 4);
+    const cats = expenseByCategory(days);
+    const maxCat = Math.max(1, ...cats.map((c) => c.value));
+    const stockCost = db.items.reduce((t, i) => t + i.stock * (Number(i.buy) || 0), 0);
+    const stockRetail = db.items.reduce((t, i) => t + i.stock * i.rate, 0);
+    const due = totalDue();
+    const oldest = db.sales
+      .filter((x) => x.method === "Udhaar")
+      .map((x) => Math.round((Date.now() - new Date(x.date + "T12:00:00").getTime()) / 864e5))
+      .sort((a, b) => b - a)[0];
+
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Reports</h1>
+        </div>
+        <div class="sbody">
+          <div class="lv-seg">
+            <button data-act="reports-days" data-days="7" class="${days === 7 ? "is-on" : ""}">7 days</button>
+            <button data-act="reports-days" data-days="30" class="${days === 30 ? "is-on" : ""}">30 days</button>
+          </div>
+
+          <div class="lv-cards">
+            <div class="lv-metric"><b class="num">${money(st.revenue)}</b><span>Sales</span></div>
+            <div class="lv-metric"><b class="num">${money(st.net)}</b><span>Net profit</span></div>
+            <div class="lv-metric"><b class="num">${st.orders}</b><span>Orders</span></div>
+            <div class="lv-metric"><b class="num">${money(st.avg)}</b><span>Avg. bill</span></div>
+          </div>
+
+          <div class="section-label" style="margin-top:20px"><span class="section-label__title">Sales, last 14 days</span>
+            <span class="muted" style="font-size:11px">${money(values.reduce((a, b) => a + b, 0))}</span>
+          </div>
+          <div class="lv-chart-card">${barChart(values, rows.map((d, i) => (i % 2 === 0 ? d.short : "")))}</div>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Top products</span></div>
+          <div class="people" style="margin-top:8px">
+            ${products.length ? products.slice(0, 5).map((p) => `<div class="lv-data-row">
+                <div><b>${esc(p.name)}</b><small>${p.qty} sold · ${money(p.profit)} profit</small>
+                  <span class="lv-minibar"><i style="width:${Math.max(4, Math.round((p.revenue / maxProduct) * 100))}%"></i></span>
+                </div>
+                <b class="num">${money(p.revenue)}</b>
+              </div>`).join("") : `<div class="lv-empty">No sales in this period.</div>`}
+          </div>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Best customers</span></div>
+          <div class="people" style="margin-top:8px">
+            ${customers.length ? customers.map((c) => `<div class="lv-data-row" data-nav="customer:${c.id}" role="button" tabindex="0">
+                <div><b>${esc(c.name)}</b><small>${c.orders} ${c.orders === 1 ? "order" : "orders"} · ${customerDue(c.id) ? "owes " + money(customerDue(c.id)) : "all settled"}</small></div>
+                <b class="num">${money(c.value)}</b>
+              </div>`).join("") : `<div class="lv-empty">No customers billed in this period.</div>`}
+          </div>
+
+          <div class="section-label" style="margin-top:18px"><span class="section-label__title">Where money went</span></div>
+          <div class="people" style="margin-top:8px">
+            ${cats.length ? cats.map((c) => `<div class="lv-data-row">
+                <div><b>${esc(c.name)}</b><span class="lv-minibar"><i style="width:${Math.max(4, Math.round((c.value / maxCat) * 100))}%"></i></span></div>
+                <b class="num">${money(c.value)}</b>
+              </div>`).join("") : `<div class="lv-empty">No expenses in this period.</div>`}
+          </div>
+
+          <div class="lv-cards" style="margin-top:18px">
+            <div class="lv-metric"><b class="num">${money(stockRetail)}</b><span>Stock at selling</span></div>
+            <div class="lv-metric"><b class="num">${money(stockCost)}</b><span>Stock at cost</span></div>
+            <div class="lv-metric"><b class="num">${money(due)}</b><span>Udhaar out</span></div>
+            <div class="lv-metric"><b class="num">${Number.isFinite(oldest) ? oldest + "d" : "—"}</b><span>Oldest due</span></div>
+          </div>
+          <p class="lv-hintline">Stock value counts what is on the shelf right now, at cost and at your selling price.</p>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* ask dost                                                           */
+  /* ------------------------------------------------------------------ */
+  function findItemIn(q) {
+    let best = null;
+    let score = 0;
+    db.items.forEach((it) => {
+      const words = String(it.name).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+      const hit = words.filter((w) => q.includes(w)).length;
+      if (hit > score) { score = hit; best = it; }
+    });
+    return score ? best : null;
+  }
+
+  function answerFor(raw) {
+    const q = String(raw || "").toLowerCase();
+    const has = (...words) => words.some((w) => q.includes(w));
+    const shop = db.shop.name;
+
+    let days = 1;
+    let offset = 0;
+    let when = "today";
+    if (has("yesterday", "kal")) { offset = 1; when = "yesterday"; }
+    else if (has("month", "mahine", "mahina", "30 day", "monthly")) { days = 30; when = "in the last 30 days"; }
+    else if (has("week", "hafta", "hafte", "7 day", "weekly")) { days = 7; when = "in the last 7 days"; }
+
+    const st = periodStats(days, offset);
+    const chipNav = (label, nav) => ({ label, nav });
+    const chipSay = (label, say) => ({ label, say });
+
+    /* hello */
+    if (has("hello", "namaste", "hey", "hi dost") || q.trim() === "hi") {
+      return {
+        text: `Namaste ${db.shop.owner.split(" ")[0]} ji. ${when === "today" ? "Today" : "Right now"} you've sold ${money(statsFor(dayKey()).total)} across ${statsFor(dayKey()).orders} orders, and ${money(totalDue())} is still out as udhaar. What would you like to know?`,
+        chips: [chipSay("Who owes me?", "Who owes me money?"), chipSay("Profit today", "How much profit did I make today?"), chipNav("Stock", "stock")],
+      };
+    }
+
+    /* help */
+    if (has("what can you do", "help", "kya kar sakta", "how do you work", "commands")) {
+      return {
+        text: "I read your own numbers — nothing leaves this phone. Ask me about sales, profit, udhaar, stock, expenses, rates or your best customer. I can also answer in Hinglish: “aaj ki bikri kitni hai?”",
+        chips: [chipSay("Sales today", "How much did I sell today?"), chipSay("Low stock", "What is running low?"), chipSay("Profit this week", "How much profit this week?")],
+      };
+    }
+
+    /* dues */
+    if (has("owe", "owes", "udhaar", "udhar", "baki", "bakaya", "outstanding", "pending")) {
+      const debtors = db.customers
+        .map((c) => ({ ...c, due: customerDue(c.id) }))
+        .filter((c) => c.due > 0)
+        .sort((a, b) => b.due - a.due);
+      if (!debtors.length) {
+        return { text: "Nothing is pending — every customer is settled up. That's a good day.", chips: [chipNav("Customers", "customers")] };
+      }
+      const top = debtors.slice(0, 3).map((c) => `${c.name} ${money(c.due)}`).join(", ");
+      return {
+        text: `${money(debtors.reduce((t, c) => t + c.due, 0))} is out as udhaar across ${debtors.length} ${debtors.length === 1 ? "customer" : "customers"}. ${top}. ${debtors.length > 1 ? `Biggest is ${debtors[0].name}.` : ""}`,
+        chips: [chipNav("Open customers", "customers"), chipSay("Send a reminder", "Give me a reminder message for the biggest due")],
+      };
+    }
+
+    /* reminder text */
+    if (has("reminder", "message likh", "whatsapp")) {
+      const top = db.customers.map((c) => ({ ...c, due: customerDue(c.id) })).filter((c) => c.due > 0).sort((a, b) => b.due - a.due)[0];
+      if (!top) return { text: "Nobody owes you anything right now, so there's no reminder to send." };
+      return {
+        text: `Here's one you can copy:\n\n“Namaste ${top.name} ji, ${shop} se. Aapka ${money(top.due)} udhaar pending hai. Kab tak ho jayega? Dhanyavaad.”`,
+        chips: [chipNav("Open customers", "customers")],
+      };
+    }
+
+    /* profit */
+    if (has("profit", "kamai", "munafa", "earning", "margin", "make money", "paisa bana")) {
+      const bestP = productProfit(days)[0];
+      return {
+        text: `${st.net < 0 ? "You're down" : "You made"} ${money(Math.abs(st.net))} ${st.net < 0 ? "" : "net "}${when === "today" ? "today" : when}. Sales ${money(st.revenue)}, goods cost ${money(st.cost)}, expenses ${money(st.expenses)} — margin ${st.margin}%.${bestP ? ` ${bestP.name} did the most: ${money(bestP.profit)}.` : ""}`,
+        chips: [chipNav("Profit breakdown", "profit"), chipSay("What about 30 days?", "How much profit in the last 30 days?")],
+      };
+    }
+
+    /* expenses */
+    if (has("expense", "kharcha", "spent", "spend", "cost me")) {
+      const cats = expenseByCategory(days, offset);
+      if (!st.expenses) return { text: `No expenses recorded ${when}.`, chips: [chipNav("Add an expense", "expense")] };
+      return {
+        text: `${money(st.expenses)} of expenses ${when}. Biggest: ${cats[0].name} at ${money(cats[0].value)}${cats[1] ? `, then ${cats[1].name} ${money(cats[1].value)}` : ""}.`,
+        chips: [chipNav("Add an expense", "expense"), chipSay("Profit after this", "What's my profit this week?")],
+      };
+    }
+
+    /* stock */
+    if (has("stock", "low", "khatam", "reorder", "order karna", "inventory", "maal")) {
+      const low = lowStock();
+      if (!low.length) {
+        return { text: `Nothing is below its alert level. ${db.items.length} products on the shelf, worth ${money(db.items.reduce((t, i) => t + i.stock * i.rate, 0))} at selling price.` , chips: [chipNav("Stock", "stock")] };
+      }
+      return {
+        text: `${low.length} ${low.length === 1 ? "product is" : "products are"} low: ${low.map((i) => `${i.name} (${i.stock} ${i.unit} left)`).join(", ")}. I'd order at least ${low.map((i) => `${Math.max(1, Math.ceil(i.low * 3 - i.stock))} ${i.unit} of ${i.name}`).join(", ")}.`,
+        chips: [chipNav("Open stock", "stock"), chipSay("Any udhaar?", "Who owes me money?")],
+      };
+    }
+
+    /* top product */
+    if (has("best product", "top product", "most sold", "best selling", "top item", "kaun sa item")) {
+      const p = productProfit(days)[0];
+      if (!p) return { text: `Nothing has sold ${when} yet.` };
+      return {
+        text: `${p.name} is your winner ${when}: ${p.qty} sold, ${money(p.revenue)} in sales, ${money(p.profit)} profit.`,
+        chips: [chipNav("Reports", "reports"), chipSay("And the best customer?", "Who is my best customer?")],
+      };
+    }
+
+    /* top customer */
+    if (has("best customer", "top customer", "biggest customer", "who buys")) {
+      const c = customerTotals(days)[0];
+      if (!c) return { text: `Nobody has bought anything ${when}.` };
+      const due = customerDue(c.id);
+      return { text: `${c.name} is your best customer ${when} — ${money(c.value)} across ${c.orders} ${c.orders === 1 ? "order" : "orders"}${due ? `, and ${money(due)} of it is still on udhaar` : ", all paid"}.` , chips: [chipNav("Open customer", `customer:${c.id}`), chipNav("Reports", "reports")] };
+    }
+
+    /* payment split */
+    if (has("upi", "cash", "payment mode", "online", "paise kaise")) {
+      const total = st.cash + st.upi + st.udhaar || 1;
+      return {
+        text: `${when === "today" ? "Today" : "In this period"}: ${money(st.upi)} by UPI (${Math.round((st.upi / total) * 100)}%), ${money(st.cash)} cash (${Math.round((st.cash / total) * 100)}%), ${money(st.udhaar)} on udhaar.`,
+        chips: [chipSay("Udhaar total", "Who owes me money?"), chipNav("Sales list", "sales")],
+      };
+    }
+
+    /* a specific product */
+    const item = findItemIn(q);
+    if (item) {
+      const sold = productProfit(days, offset).find((p) => p.id === item.id);
+      return {
+        text: `${item.name}: ${money(item.rate)} per ${item.unit}, costs you ${money(item.buy)} — ${money(item.rate - item.buy)} per ${item.unit} margin. ${item.stock} ${item.unit} in stock${sold ? `, ${sold.qty} sold ${when} for ${money(sold.revenue)}` : ""}.`,
+        chips: [chipNav("Open product", `restock:${item.id}`), chipNav("Stock", "stock")],
+      };
+    }
+
+    /* sales */
+    if (has("sale", "sales", "bikri", "sold", "sell", "revenue", "turnover", "business", "kitna", "kamaya")) {
+      if (!st.orders) return { text: `No sales ${when} yet. Want to add one?`, chips: [chipNav("New sale", "sale-new"), chipNav("Speak a sale", "voice")] };
+      return {
+        text: `${money(st.revenue)} in sales ${when} across ${st.orders} ${st.orders === 1 ? "order" : "orders"} — average bill ${money(st.avg)}. Udhaar out overall is ${money(totalDue())}.`,
+        chips: [chipNav("Sales", "sales"), chipSay("And profit?", `What's my profit ${when === "today" ? "today" : when}?`)],
+      };
+    }
+
+    /* fallback */
+    return {
+      text: `I can answer from your own books: ${money(statsFor(dayKey()).total)} sold today, ${money(totalDue())} udhaar out, ${lowStock().length} ${lowStock().length === 1 ? "product" : "products"} low, ${money(periodStats(7).net)} profit this week. Try asking “who owes me money” or “what's running low?”`,
+      chips: [chipSay("Who owes me?", "Who owes me money?"), chipSay("Profit today", "How much profit did I make today?"), chipSay("Low stock", "What is running low?")],
+    };
+  }
+
+  function askSend(text) {
+    const q = String(text || "").trim();
+    if (!q) return;
+    if (!Array.isArray(db.chat)) db.chat = [];
+    db.chat.push({ role: "me", text: q, at: Date.now() });
+    const a = answerFor(q);
+    db.chat.push({ role: "dost", text: a.text, chips: a.chips || [], at: Date.now() + 1 });
+    if (db.chat.length > 80) db.chat = db.chat.slice(-80);
+    persist();
+    go("ask");
+    requestAnimationFrame(() => {
+      const chat = $("#chat");
+      if (chat) chat.scrollTop = chat.scrollHeight;
+      const input = $("#ask-input");
+      if (input) input.focus();
+    });
+  }
+
+  function listenOnce(onText) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      toast("This browser has no speech recognition — typing works the same");
+      return;
+    }
+    try {
+      const rec = new SR();
+      rec.lang = db.settings.lang || "en-IN";
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      rec.onresult = (ev) => {
+        const said = ev.results[0][0].transcript;
+        onText(said);
+      };
+      rec.onerror = (ev) => {
+        const code = ev.error;
+        toast(code === "not-allowed" || code === "service-not-allowed"
+          ? "Microphone is blocked — allow it in the address bar"
+          : code === "no-speech" ? "Didn't catch that — try again" : "Couldn't listen just now");
+      };
+      rec.start();
+      toast("Listening…");
+    } catch (err) {
+      toast("Couldn't start the microphone");
+    }
+  }
+
+  function chatBubble(m) {
+    const chips = (m.chips || []).length
+      ? `<div class="lv-msg__chips">${m.chips.map((c) => `<button data-act="ask-chip" data-q="${esc(c.say || "")}" data-go="${esc(c.nav || "")}">${esc(c.label)}</button>`).join("")}</div>`
+      : "";
+    return `<div class="lv-msg lv-msg--${m.role}">
+        ${m.role === "dost" ? `<span class="lv-msg__avatar">${icon("ai")}</span>` : ""}
+        <div class="lv-msg__wrap">
+          <div class="lv-msg__body">${esc(m.text).replace(/\n/g, "<br/>")}</div>
+          ${chips}
+        </div>
+      </div>`;
+  }
+
+  function viewAsk() {
+    if (!Array.isArray(db.chat)) db.chat = [];
+    const seedChips = [
+      { label: "Who owes me?", say: "Who owes me money?" },
+      { label: "Profit today", say: "How much profit did I make today?" },
+      { label: "What's low?", say: "What is running low?" },
+      { label: "Best customer", say: "Who is my best customer this month?" },
+    ];
+    const empty = `<div class="lv-msg lv-msg--dost">
+        <span class="lv-msg__avatar">${icon("ai")}</span>
+        <div class="lv-msg__wrap">
+          <div class="lv-msg__body">Namaste ${esc(db.shop.owner.split(" ")[0])} ji. Ask me anything about your shop — sales, profit, udhaar, stock. I answer from your own books, and nothing leaves this phone.</div>
+          <div class="lv-msg__chips">
+            ${seedChips.map((c) => `<button data-act="ask-chip" data-q="${esc(c.say)}">${esc(c.label)}</button>`).join("")}
+          </div>
+        </div>
+      </div>`;
+
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="lv-ask">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Ask Dost</h1>
+          <button class="lv-icon-btn" data-act="ask-clear" aria-label="Clear conversation">${icon("refresh")}</button>
+        </div>
+        <div class="lv-chat" id="chat">${db.chat.length ? db.chat.map(chatBubble).join("") : empty}</div>
+        <div class="lv-askbar">
+          <input class="lv-input" id="ask-input" placeholder="Ask about sales, udhaar, stock…" autocomplete="off" />
+          <button class="lv-askbar__mic" data-act="ask-mic" aria-label="Ask by voice">${icon("mic")}</button>
+          <button class="lv-askbar__send" data-act="ask-send" aria-label="Send">${icon("arrow-up-right")}</button>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* settings                                                           */
+  /* ------------------------------------------------------------------ */
+  function viewSettings() {
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Shop settings</h1>
+        </div>
+        <div class="lv-form">
+          <div class="lv-field">
+            <span class="lv-label">Shop name</span>
+            <input class="lv-input" id="set-name" value="${esc(db.shop.name)}" />
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Owner</span>
+            <input class="lv-input" id="set-owner" value="${esc(db.shop.owner)}" />
+          </div>
+          <div class="lv-pair">
+            <div class="lv-field">
+              <span class="lv-label">Phone</span>
+              <input class="lv-input" id="set-phone" type="tel" inputmode="tel" value="${esc(db.shop.phone || "")}" placeholder="Your number" />
+            </div>
+            <div class="lv-field">
+              <span class="lv-label">GSTIN</span>
+              <input class="lv-input" id="set-gstin" value="${esc(db.shop.gstin || "")}" placeholder="Optional" />
+            </div>
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Dost speaks</span>
+            <select class="lv-select" id="set-lang">
+              <option value="en-IN" ${db.settings.lang === "en-IN" ? "selected" : ""}>English (India)</option>
+              <option value="hi-IN" ${db.settings.lang === "hi-IN" ? "selected" : ""}>हिंदी</option>
+            </select>
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="save-settings">${icon("check")} Save</button>
+          </div>
+          <p class="lv-hintline">These details appear on invoices you share.</p>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
   function viewMore() {
     const dataSize = (() => {
       try { return (JSON.stringify(db).length / 1024).toFixed(1) + " KB"; } catch (e) { return "—"; }
@@ -1177,6 +1797,22 @@
         </div>
         <div class="sbody">
           <section class="people">
+            <a class="lv-data-row lv-data-row--link" data-nav="profit">
+              <div><b>Profit</b><small>What you actually made, after cost and expenses</small></div>
+              <span class="pill pill--success">${money(periodStats(1).net)}</span>
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="reports">
+              <div><b>Reports</b><small>Sales by day, top products, best customers, udhaar ageing</small></div>
+              ${icon("chevron-right")}
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="ask">
+              <div><b>Ask Dost</b><small>Questions about your own books, answered</small></div>
+              ${icon("chevron-right")}
+            </a>
+            <a class="lv-data-row lv-data-row--link" data-nav="settings">
+              <div><b>Shop settings</b><small>Name, phone, GSTIN, language</small></div>
+              ${icon("chevron-right")}
+            </a>
             <div class="lv-data-row">
               <div><b>${db.sales.length} sales · ${db.expenses.length} expenses</b><small>${db.items.length} items · ${db.customers.length} customers · ${dataSize}</small></div>
             </div>
@@ -1191,10 +1827,6 @@
                 <b>Put it on your phone</b>
                 <small>Open this page in Chrome or Safari → Install, or Share → Add to Home Screen.</small>
               </div>
-            </div>
-            <div class="lv-data-row">
-              <div><b>Shop name</b><small>Shown on the dashboard</small></div>
-              <input class="lv-input" id="shop-name" style="max-width:150px" value="${esc(db.shop.name)}" />
             </div>
             <div class="lv-data-row">
               <div><b>Export</b><small>A JSON file you own</small></div>
@@ -1245,6 +1877,10 @@
     else if (base === "item-new") html = viewItemForm(null);
     else if (base === "item-edit") html = viewItemForm(id);
     else if (base === "customer-new") html = viewCustomerForm();
+    else if (base === "profit") html = viewProfit();
+    else if (base === "reports") html = viewReports();
+    else if (base === "ask") html = viewAsk();
+    else if (base === "settings") html = viewSettings();
     else if (base === "sale-new") html = viewNewSale();
     else if (base === "expense") html = viewExpense();
     else if (base === "voice") html = viewVoice();
@@ -1253,6 +1889,10 @@
     else html = viewHome();
 
     HOST.innerHTML = html;
+
+    /* conversations open at the latest message, not the oldest */
+    const chatBox = $("#chat");
+    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     const screen = HOST.firstElementChild;
     if (screen) screen.classList.add("screen--enter");
     const scroller = HOST.querySelector(".screen__scroll");
@@ -1337,6 +1977,7 @@
           name: titleCase(name),
           unit: s.newItemUnit || "piece",
           rate: Number(s.rate) || 0,
+          buy: 0,
           stock: num(s.newItemStock),
           low: 10,
         };
@@ -1472,6 +2113,82 @@
     const id = act.getAttribute("data-id");
 
     switch (name) {
+      case "profit-days":
+        event.preventDefault();
+        ui.profit.days = Number(act.getAttribute("data-days")) || 1;
+        render();
+        break;
+      case "reports-days":
+        event.preventDefault();
+        ui.reports.days = Number(act.getAttribute("data-days")) || 7;
+        render();
+        break;
+      case "ask-send": {
+        event.preventDefault();
+        const box = $("#ask-input");
+        askSend(box ? box.value : "");
+        break;
+      }
+      case "ask-chip": {
+        event.preventDefault();
+        const go2 = act.getAttribute("data-go");
+        const q = act.getAttribute("data-q");
+        if (go2) go(go2);
+        else if (q) askSend(q);
+        break;
+      }
+      case "ask-mic":
+        event.preventDefault();
+        listenOnce((said) => askSend(said));
+        break;
+      case "ask-clear": {
+        event.preventDefault();
+        if (!db.chat.length || window.confirm("Clear this conversation?")) {
+          db.chat = [];
+          persist();
+          render();
+        }
+        break;
+      }
+      case "save-settings": {
+        event.preventDefault();
+        const name = (($("#set-name") || {}).value || "").trim();
+        const owner = (($("#set-owner") || {}).value || "").trim();
+        db.shop.name = name || db.shop.name;
+        db.shop.owner = owner || db.shop.owner;
+        db.shop.phone = (($("#set-phone") || {}).value || "").trim();
+        db.shop.gstin = (($("#set-gstin") || {}).value || "").trim();
+        const lang = ($("#set-lang") || {}).value;
+        if (lang) db.settings.lang = lang;
+        persist();
+        go("more");
+        toast("Shop details saved");
+        break;
+      }
+      case "share-invoice": {
+        event.preventDefault();
+        const sale = db.sales.find((x) => x.id === id);
+        if (!sale) break;
+        window.open("https://wa.me/?text=" + encodeURIComponent(invoiceText(sale)), "_blank", "noopener");
+        break;
+      }
+      case "copy-invoice": {
+        event.preventDefault();
+        const sale = db.sales.find((x) => x.id === id);
+        if (!sale) break;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(invoiceText(sale))
+            .then(() => toast("Invoice copied — paste it anywhere"))
+            .catch(() => toast("Couldn't copy — long-press the invoice to select it"));
+        } else {
+          toast("Copying isn't allowed here — use Print / PDF");
+        }
+        break;
+      }
+      case "print-invoice":
+        event.preventDefault();
+        window.print();
+        break;
       case "back":
         event.preventDefault();
         go(homeFor(ui.route));
@@ -1536,6 +2253,7 @@
         const rate = num(($("#item-rate") || {}).value);
         const stock = num(($("#item-stock") || {}).value);
         const low = num(($("#item-low") || {}).value);
+        const buy = num(($("#item-cost") || {}).value);
         if (!name) { toast("Give the product a name"); break; }
         if (id) {
           const item = db.items.find((i) => i.id === id);
@@ -1543,13 +2261,14 @@
           item.name = titleCase(name);
           item.unit = unit;
           item.rate = rate || item.rate;
+          if (buy > 0) item.buy = buy;
           item.stock = stock;
           item.low = low;
           persist();
           go("stock");
           toast(`${item.name} updated`);
         } else {
-          const item = { id: uid("it"), name: titleCase(name), unit, rate, stock, low: low || 10 };
+          const item = { id: uid("it"), name: titleCase(name), unit, rate, buy: buy || Math.round(rate * 0.88), stock, low: low || 10 };
           db.items.push(item);
           persist();
           go("stock");
@@ -1589,10 +2308,12 @@
         event.preventDefault();
         const item = db.items.find((i) => i.id === id);
         const add = num(($("#stock-add") || {}).value);
-        const rate = num(($("#stock-rate") || {}).value);
+        const cost = num(($("#stock-rate") || {}).value);
+        const sell = num(($("#stock-sell") || {}).value);
         if (!item || add <= 0) { toast("Enter how much arrived"); break; }
         item.stock = Math.round((Number(item.stock) + add) * 100) / 100;
-        if (rate > 0) item.rate = rate;
+        if (cost > 0) item.buy = cost;
+        if (sell > 0) item.rate = sell;
         persist();
         go("stock");
         toast(`+${add} ${item.unit} ${item.name}`);
@@ -1742,6 +2463,11 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.target && event.target.id === "ask-input") {
+      event.preventDefault();
+      askSend(event.target.value);
+      return;
+    }
     if (event.key === "Escape") {
       if (ui.voice.live) stopListening();
       go(homeFor(ui.route));

@@ -43,6 +43,21 @@ it runs in your browser and saves to it:
   reset to the sample shop — all in **More**.
 - Works on a phone at the same URL, full-bleed. Microphone needs `localhost` or `https`.
 
+What it does, end to end:
+
+| | |
+| --- | --- |
+| **Sell** | Type or speak a sale; the parser finds the customer (nicknames too), item, quantity, price and payment mode, and asks you to approve it before anything is written |
+| **Products** | Add a product from Stock (name, unit, selling rate, cost price, opening stock, low-stock alert), edit it, delete it if no invoice uses it — or create one on the fly inside New sale |
+| **Customers** | Add from the Customers screen or inline in a sale; each has a ledger of bills, payments and udhaar |
+| **Stock** | Every sale decrements it, restock adds a delivery, low-stock alerts on the dashboard |
+| **Profit** | Real cost of goods: sales − cost − expenses, margin, and which product actually earned the money |
+| **Reports** | Sales day by day, top products, best customers, where money went, stock value, oldest due |
+| **Ask Dost** | “Who owes me money?”, “What's running low?”, “Rate of cement?” — answered from your own books, on the device, no AI key needed |
+| **Invoices** | Open any sale: shop name, GSTIN, invoice number, lines — send on WhatsApp, print/PDF, or copy the text |
+| **Expenses** | Categories, notes, and they feed straight into profit |
+| **Your data** | Lives in this browser; export/import a JSON file; resets to a sample shop on demand |
+
 **Install it on a phone:** the app has a manifest, icons and an offline cache, so from any `https://`
 address it installs to the home screen (Android: *Install*; iPhone: Share → *Add to Home Screen*) and
 opens full screen, offline. Where the data goes, how to publish it, and what changes when a second

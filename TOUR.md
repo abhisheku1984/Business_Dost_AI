@@ -29,8 +29,19 @@ Open **`live.html`** (`http://localhost:4173/live.html`) in Chrome or Edge.
 - No microphone, or a browser without speech? Tap **Type instead** — identical result.
 - **More** has export, import and reset. Try an export; it is a plain JSON file you own.
 
+- **Add a product**: Stock → **Add a product** → name, unit, selling rate, cost price, opening stock.
+  It shows up in New sale immediately — or use **＋ New product…** right inside the sale form.
+- **See your profit**: Home → **Profit**. Sales − cost of goods − expenses = what you actually made,
+  plus which product earned the most. The cost prices are what make this honest.
+- **Ask Dost**: Home → **Ask Dost anything**, or More → Ask Dost. Try *“who owes me money?”*,
+  *“what's running low?”*, *“rate of cement”*. Every answer is computed from your own data.
+- **Send an invoice**: Sales → any sale → **Send on WhatsApp** (or Print/PDF, or Copy text).
+- **Reports**: More → Reports — 14 days of sales, top products, best customers, expense split.
+
 - [ ] My own sale ended up on the dashboard
 - [ ] It survived a reload
+- [ ] Adding a product worked and it appeared in New sale
+- [ ] Profit matched what I expected (sales − cost − expenses)
 - [ ] I would trust this with a day of my shop's numbers
 
 ---
