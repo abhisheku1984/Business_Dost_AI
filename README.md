@@ -61,6 +61,10 @@ What it does, end to end:
 | **Your data** | Lives in this browser; export/import a JSON file; resets to a sample shop on demand |
 | **Sync** | Optional: point two phones at one small server (`sync/`) and they share the shop — see [`sync/README.md`](sync/README.md) |
 
+**Where the data lives:** one JSON document in this browser's local storage, key `bd-live-v1` —
+what is inside it, how to see it, when it is lost, and what a real database would replace it with:
+[`DATA.md`](DATA.md).
+
 **Install it on a phone:** the app has a manifest, icons and an offline cache, so from any `https://`
 address it installs to the home screen (Android: *Install*; iPhone: Share → *Add to Home Screen*) and
 opens full screen, offline. Where the data goes, how to publish it, and what changes when a second

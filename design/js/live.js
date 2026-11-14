@@ -1940,6 +1940,16 @@
           </div>
           <p class="lv-hintline">These details appear on invoices you share.</p>
 
+          <div class="section-label" style="margin-top:22px"><span class="section-label__title">Where this data lives</span></div>
+          <div class="lv-data-row">
+            <div>
+              <b>${esc(KEY)}</b>
+              <small>${(() => { try { return (JSON.stringify(db).length / 1024).toFixed(1) + " KB"; } catch (e) { return "—"; } })()} · ${esc(location.host || "this file")} · this browser only</small>
+            </div>
+            <span class="pill">${syncReady() ? "synced" : "local"}</span>
+          </div>
+          <p class="lv-hintline" style="text-align:left">One JSON document in this browser's local storage. No database server, no account, nothing on a website. More → Export writes the same document to a file you own.</p>
+
           <div class="section-label" style="margin-top:22px"><span class="section-label__title">Cloud sync</span>
             <span class="pill">optional</span>
           </div>
