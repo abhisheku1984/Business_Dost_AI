@@ -74,15 +74,16 @@ def main():
 
     url = f"http://localhost:{port}/"
     print()
-    print("Business Dost AI — design review")
+    print("Business Dost AI")
     print(f"Folder:  {ROOT}")
-    print(f"Review:  {url}")
-    print(f"Demo:    {url}demo.html")
+    print(f"App:     {url}live.html      ← the working app (opens automatically)")
+    print(f"Review:  {url}               the design review site")
+    print(f"Demo:    {url}demo.html       the 30-second demo")
     print()
     print("Press Ctrl+C to stop.")
     print()
 
-    threading.Timer(1.0, lambda: _open(url)).start()
+    threading.Timer(1.0, lambda: _open(url + "live.html")).start()
 
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("127.0.0.1", port), Handler) as httpd:

@@ -33,17 +33,22 @@ This starts a tiny local web server and opens the site, which behaves exactly li
 
 A terminal window stays open while the site is running. Close it, or press **Ctrl + C**, to stop.
 
-The launcher (`serve.py`, standard library only) prints exactly what it serves:
+The launcher (`serve.py`, standard library only) opens the **working app** and prints everything it
+serves:
 
 ```
-Business Dost AI — design review
+Business Dost AI
 Folder:  E:\BusinessDost
-Review:  http://localhost:4173/
-Demo:    http://localhost:4173/demo.html
+App:     http://localhost:4173/live.html      ← the working app (opens automatically)
+Review:  http://localhost:4173/               the design review site
+Demo:    http://localhost:4173/demo.html       the 30-second demo
 ```
 
-Open the URL on the **Review** line. The app is one path further along: `<that url>app.html`. If port 4173 is busy it says so and moves to 4174, 4175… —
-useful when an older copy of the site is still running somewhere else.
+If port 4173 is busy it says so and moves to 4174, 4175… — useful when an older copy is still running
+somewhere else. Always use the URLs it prints.
+
+**Microphone:** use Chrome or Edge and allow the mic when asked. `localhost` counts as a secure page,
+so speech works on your computer; on a phone, open the `https://…` preview link rather than a LAN IP.
 
 If Python is not installed, the script simply opens the site directly (Option 1).
 The launcher uses port `4173`; to use another port: `PORT=5000 ./run.sh`.

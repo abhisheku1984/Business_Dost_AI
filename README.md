@@ -16,8 +16,8 @@ built for review before the production app is implemented.
 
 No build step and no network needed — all fonts and icons are local.
 
-- **Run it on your computer:** see [`RUN.md`](RUN.md) — double-click `design/index.html`, or use the
-  one-click launcher (`run.bat`, `run.command`, `run.sh`).
+- **Run it on your computer:** see [`RUN.md`](RUN.md) — double-click `run.bat` (Windows) /
+  `run.command` (macOS) / `./run.sh`, which opens the working app at `http://localhost:4173/live.html`.
 - **Terminal:** `python3 serve.py` — it picks a free port, opens the browser and prints the URL.
   (Plain `python3 -m http.server 4173 --directory design` works too.)
 - **Get the files onto your machine:** the review is on the branch `arena/6f2ae4dd-business-dost-ai`
