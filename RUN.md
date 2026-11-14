@@ -109,6 +109,7 @@ and open `design/index.html` (Option 1) or run the launcher (Option 2).
 | actually use it | open `design/live.html` (`/live.html`) — real sales, stock and dues, speech input, saved in your browser. Best in Chrome or Edge, and on `localhost` or `https` for the microphone |
 | see the review site | open `design/index.html`, or double-click `run.bat` / `run.command` / `./run.sh` |
 | watch the demo | open `design/demo.html` (plays itself), or `demo/business-dost-demo.mp4` |
+| install it on a phone | put the `design` folder on any `https` host (Netlify Drop is the 2-minute path) and open `/live.html`, then *Install* / *Add to Home Screen* — see [`HOSTING.md`](HOSTING.md) |
 | move the folder elsewhere | it is self-contained — copy the whole folder; keep `design/assets/fonts/` with it |
 | get my later changes again | `git pull` inside the folder, on the same branch |
 

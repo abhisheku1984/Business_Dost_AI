@@ -1074,6 +1074,18 @@
               <div><b>${db.sales.length} sales · ${db.expenses.length} expenses</b><small>${db.items.length} items · ${db.customers.length} customers · ${dataSize}</small></div>
             </div>
             <div class="lv-data-row">
+              <div>
+                <b>Where this lives</b>
+                <small>In this browser, on this device only. No server sees it — and another phone sees none of it.</small>
+              </div>
+            </div>
+            <div class="lv-data-row">
+              <div>
+                <b>Put it on your phone</b>
+                <small>Open this page in Chrome or Safari → Install, or Share → Add to Home Screen.</small>
+              </div>
+            </div>
+            <div class="lv-data-row">
               <div><b>Shop name</b><small>Shown on the dashboard</small></div>
               <input class="lv-input" id="shop-name" style="max-width:150px" value="${esc(db.shop.name)}" />
             </div>

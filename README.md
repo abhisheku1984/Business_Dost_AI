@@ -43,6 +43,11 @@ it runs in your browser and saves to it:
   reset to the sample shop — all in **More**.
 - Works on a phone at the same URL, full-bleed. Microphone needs `localhost` or `https`.
 
+**Install it on a phone:** the app has a manifest, icons and an offline cache, so from any `https://`
+address it installs to the home screen (Android: *Install*; iPhone: Share → *Add to Home Screen*) and
+opens full screen, offline. Where the data goes, how to publish it, and what changes when a second
+person needs the same shop is all in [`HOSTING.md`](HOSTING.md).
+
 What it is not: no accounts, no cloud sync, no camera scanning, and the shop is one device. That is
 the honest scope of a browser build — the line between this and the real product is a backend.
 
@@ -86,6 +91,8 @@ What to do first:
 design/
   app.html              The app itself: wired navigation + the live voice assistant
   live.html             The working app: real sales, stock, dues, speech input, local storage
+  manifest.webmanifest  Installable-app metadata (name, icons, standalone)
+  sw.js                 Offline cache for the live app
   demo.html             Self-playing 30-second demo (autopilot over the real screens)
   index.html            Review site — all sections, inline SVG sprite, modal specs
   css/
