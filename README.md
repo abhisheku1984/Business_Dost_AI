@@ -165,13 +165,15 @@ Everything below runs today in `design/live.html` — no mockups.
 | Area | State |
 | --- | --- |
 | Sales, GST, quotations → bills | Working |
+| **Invoices** — many items on one bill, back-dated, **edit a saved invoice** (lines, quantities, rates, customer, payment) with stock corrected by the difference | Working |
 | **Invoices register** — every bill, search by number/customer/item, Paid / Udhaar / Today, print & collect | Working |
 | Products **and services** (HSN/SAC, no stock for services) | Working |
-| Customers, udhaar, part payments, reminders | Working |
+| Customers — add, edit (name, phone, address), receipts, udhaar, part payments, reminders | Working |
 | Suppliers — what each one supplies, phone, GSTIN, address, notes, edit | Working |
 | **Purchase bills** — many items in one bill, their bill number and date, paid / part paid / credit, notes, correct or delete | Working |
 | Stock movements, low-stock alerts, profit & COGS | Working |
-| Expenses, categories, reports, 14-day charts | Working |
+| **Expenses** — list, totals, edit the amount/category/date, delete | Working |
+| Reports, 14-day charts, profit & COGS | Working |
 | Documents — bill photos, compressed and stored with the data | Working |
 | Reminders + device notifications (while the app is open) | Working |
 | People & roles — owner vs staff, with an activity log | Working |
