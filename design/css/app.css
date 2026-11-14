@@ -74,6 +74,7 @@ body.app {
   transition: border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
 .app-bar__ghost:hover { border-color: var(--line-strong, var(--line)); color: var(--ink); }
+.app-bar__ghost--live { color: var(--brand-text); border-color: rgba(62, 211, 173, .45); background: rgba(62, 211, 173, .08); }
 .app-bar__ghost .i { width: 14px; height: 14px; }
 
 /* ---------------- Stage ---------------- */

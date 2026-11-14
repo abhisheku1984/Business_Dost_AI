@@ -15,7 +15,27 @@ If you double-clicked `design/index.html`, the demo is the file `design/demo.htm
 
 ---
 
-## 0 · Use the app (3 minutes)
+## 0 · Use the live version, for real (5 minutes)
+
+Open **`live.html`** (`http://localhost:4173/live.html`) in Chrome or Edge.
+
+- Tap the **Dost** orb → the mic → allow the microphone → say *“Sold 12 bags of cement to Ramesh for
+  4200, he paid by UPI.”* A draft appears with the customer, item, quantity and payment already
+  filled in, plus a confidence score and *why* it chose them.
+- Fix anything it got wrong, then **Approve & save**.
+- Go back to **Home**: today's sales, orders, average bill and the sparkline all moved because a sale
+  really happened. **Stock** went down. **Customers** shows the udhaar if you chose it.
+- **Reload the page.** It is still there — saved in this browser, nowhere else.
+- No microphone, or a browser without speech? Tap **Type instead** — identical result.
+- **More** has export, import and reset. Try an export; it is a plain JSON file you own.
+
+- [ ] My own sale ended up on the dashboard
+- [ ] It survived a reload
+- [ ] I would trust this with a day of my shop's numbers
+
+---
+
+## 0b · Use the prototype app (3 minutes)
 
 Open **`app.html`** (`http://localhost:4173/app.html`). This is not a gallery — it is the app, wired:
 

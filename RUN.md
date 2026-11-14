@@ -101,6 +101,7 @@ and open `design/index.html` (Option 1) or run the launcher (Option 2).
 | I want to… | Do |
 | --- | --- |
 | use the app | open `design/app.html` (or `/app.html` on the local server) — tabs, approvals and the voice assistant work |
+| actually use it | open `design/live.html` (`/live.html`) — real sales, stock and dues, speech input, saved in your browser. Best in Chrome or Edge, and on `localhost` or `https` for the microphone |
 | see the review site | open `design/index.html`, or double-click `run.bat` / `run.command` / `./run.sh` |
 | watch the demo | open `design/demo.html` (plays itself), or `demo/business-dost-demo.mp4` |
 | move the folder elsewhere | it is self-contained — copy the whole folder; keep `design/assets/fonts/` with it |

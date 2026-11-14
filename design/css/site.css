@@ -825,6 +825,7 @@ body.modal-open { overflow: hidden; }
 
 /* Door into the running app */
 .navlink--app { margin-top: 8px; color: var(--brand-text); font-weight: 600; }
+.navlink--live { margin-top: 2px; }
 .navlink--app .navlink__num { color: var(--brand-text); }
 .hero__doors { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 18px; }
 .hero__doors .hero__demo { margin-top: 0; }

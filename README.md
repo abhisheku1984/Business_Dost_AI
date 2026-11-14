@@ -27,6 +27,25 @@ No build step and no network needed — all fonts and icons are local.
 
 The page works offline and is designed for both desktop review and a 390 px phone.
 
+### Use the live version (real data)
+
+[`design/live.html`](design/live.html) is the one that actually functions. No accounts, no server —
+it runs in your browser and saves to it:
+
+- **Speak a sale.** Tap the **Dost** orb → the mic → say *“Sold 12 bags of cement to Ramesh for
+  ₹4,200, he paid by UPI.”* The browser's own speech recognition transcribes it, a real parser pulls
+  out the customer, item, quantity, rate and payment method, and you get an editable draft with a
+  confidence score. Approve it and it is a sale.
+- **Or type it** — same parser, for browsers without speech recognition (and for quiet shops).
+- **Everything downstream is computed, not drawn.** The dashboard's sales, orders, average bill, UPI
+  share and sparkline; stock going down with every sale; udhaar owed per customer; expenses.
+- **It remembers.** Reload and your sales are still there. Export a JSON copy, import it back, or
+  reset to the sample shop — all in **More**.
+- Works on a phone at the same URL, full-bleed. Microphone needs `localhost` or `https`.
+
+What it is not: no accounts, no cloud sync, no camera scanning, and the shop is one device. That is
+the honest scope of a browser build — the line between this and the real product is a backend.
+
 ### Open the working app
 
 [`design/app.html`](design/app.html) is the app itself, running: the five tabs navigate, **New sale**
@@ -66,6 +85,7 @@ What to do first:
 ```
 design/
   app.html              The app itself: wired navigation + the live voice assistant
+  live.html             The working app: real sales, stock, dues, speech input, local storage
   demo.html             Self-playing 30-second demo (autopilot over the real screens)
   index.html            Review site — all sections, inline SVG sprite, modal specs
   css/

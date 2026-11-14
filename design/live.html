@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a6a56" />
+  <title>Business Dost AI — Live</title>
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/screens.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/live.css" />
+</head>
+<body class="app">
+  <!-- inline sprite: every icon is a local symbol, no network -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="g-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#35d6a9"/>
+      <stop offset=".55" stop-color="#54b4f2"/>
+      <stop offset="1" stop-color="#9c8df2"/>
+    </linearGradient>
+  </defs>
+  <symbol id="logo" viewBox="0 0 40 40">
+    <rect width="40" height="40" rx="12.5" fill="currentColor"/>
+    <path d="M14.6 11.2h5.9a8.8 8.8 0 0 1 0 17.6h-5.9z" fill="none" stroke="url(#g-mark)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="22.6" cy="20" r="2.15" fill="url(#g-mark)"/>
+  </symbol>
+
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.6 12 3.5l8.5 7.1V20a.9.9 0 0 1-.9.9h-4.9v-6.1H9.3v6.1H4.4a.9.9 0 0 1-.9-.9z"/></symbol>
+  <symbol id="i-sales" viewBox="0 0 24 24"><path d="M6 3.2h12v17.6l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6z"/><path d="M9 8h6M9 11.6h6M9 15.2h3.5"/></symbol>
+  <symbol id="i-ai" viewBox="0 0 24 24"><path d="M11 3.4 12.8 8.6 18 10.4l-5.2 1.8L11 17.4 9.2 12.2 4 10.4l5.2-1.8z"/><path d="m18.4 15.4.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 3.4 12.8 8.6 18 10.4l-5.2 1.8L11 17.4 9.2 12.2 4 10.4l5.2-1.8z"/><path d="m18.4 15.4.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9.3" cy="8" r="3.6"/><path d="M2.8 20.2v-1.3a4.6 4.6 0 0 1 4.6-4.6h3.8a4.6 4.6 0 0 1 4.6 4.6v1.3"/><path d="M16.1 4.6a3.6 3.6 0 0 1 0 6.9"/><path d="M21.2 20.2v-1.3a4.6 4.6 0 0 0-3.4-4.4"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2.2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18.2 8.4a6.2 6.2 0 1 0-12.4 0c0 5.2-2.1 6.3-2.1 6.3h16.6s-2.1-1.1-2.1-6.3z"/><path d="M10.3 20.1a2 2 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.6"/><path d="M20.4 20.4 16.2 16.2"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12 15 18.5"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m5.5 9 6.5 6.5L18.5 9"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.6 4.6 4.6L19 7.4"/></symbol>
+  <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17.2 6.8M8.2 6.8h9v9"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4.8v14.4M5.8 13l6.2 6.2L18.2 13"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7.2 3.6h2.9l1.3 4-2 1.4a11.5 11.5 0 0 0 5.6 5.6l1.4-2 4 1.3v2.9a2.4 2.4 0 0 1-2.6 2.4C10.5 18.4 5.6 13.5 4.8 6.2A2.4 2.4 0 0 1 7.2 3.6z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.2 19 6v5.4c0 4.6-3 7.8-7 9.4-4-1.6-7-4.8-7-9.4V6z"/><path d="m9 11.8 2 2 4-4"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5"/><path d="M4 12h16"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.6 8.3h2.8l1.4-1.9h6.4l1.4 1.9h2.8a1 1 0 0 1 1 1v9.2a1 1 0 0 1-1 1H4.6a1 1 0 0 1-1-1V9.3a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.4" r="3.3"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3.4 8.2a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v9.6a2 2 0 0 1-2 2H5.4a2 2 0 0 1-2-2z"/><path d="M3.4 9.2h17.2"/><path d="M16.2 13.6h2.4"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.8" y="5.2" width="18.4" height="13.6" rx="3"/><path d="M2.8 9.8h18.4"/><path d="M6.4 15h3.2"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3.4 8.4 4.4v8.4L12 20.6 3.6 16.2V7.8z"/><path d="M3.9 8 12 12.3 20.1 8M12 12.3v8.1"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5.4 8.2h13.2l1 11.2a1.4 1.4 0 0 1-1.4 1.5H5.8a1.4 1.4 0 0 1-1.4-1.5z"/><path d="M8.8 8.2V6.8a3.2 3.2 0 0 1 6.4 0v1.4"/></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><path d="M2.8 6.8h10.6v9.4H2.8z"/><path d="M13.4 10.2h3.4l3.4 3.2v2.8h-6.8"/><circle cx="7" cy="18.2" r="1.8"/><circle cx="17" cy="18.2" r="1.8"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3.4 20.4h17.2"/><path d="M6.6 20.4v-6.2M12 20.4V5.4M17.4 20.4v-9.4"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M4.4 9.2 6 4.2h12l1.6 5"/><path d="M3.6 9.2h16.8v10.4a1 1 0 0 1-1 1H4.6a1 1 0 0 1-1-1z"/><path d="M9.4 20.6v-5.4h5.2v5.4"/><path d="M3.6 9.2a2.1 2.1 0 0 0 4.2 0 2.1 2.1 0 0 0 4.2 0 2.1 2.1 0 0 0 4.2 0 2.1 2.1 0 0 0 4.2 0"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6.4h16M7 12h10M10 17.6h4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4.2v10.2M8.2 10.8 12 14.6l3.8-3.8"/><path d="M4.8 20.2h14.4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3.6 4.8v4.6h4.6"/><path d="M4.4 9.2A8.2 8.2 0 1 1 3.8 12"/><path d="M12 8.2v4.4l3 1.8"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.8"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M9.4 6.6 18 12l-8.6 5.4z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9.2 6.2v11.6M14.8 6.2v11.6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9.2" y="3" width="5.6" height="10.6" rx="2.8"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0M12 17.6v3.4"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.8" y="6.2" width="18.4" height="11.6" rx="2.6"/><path d="M6.4 10h.01M9.6 10h.01M12.8 10h.01M16 10h.01M6.4 13.4h.01M9.6 13.4h.01M12.8 13.4h.01M16 13.4h.01M8.2 16.2h7.6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4c2.4 2.3 3.6 5.2 3.6 8.6s-1.2 6.3-3.6 8.6c-2.4-2.3-3.6-5.2-3.6-8.6S9.6 5.7 12 3.4z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.4 14.6A8.6 8.6 0 0 1 9.4 3.6a8.6 8.6 0 1 0 11 11z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M18.5 5.5l-1.4 1.4M6.9 17.1l-1.4 1.4"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7.2h9.4M17.8 7.2h2.2M4 16.8h3.8M12.2 16.8h7.8"/><circle cx="15.6" cy="7.2" r="2.2"/><circle cx="10" cy="16.8" r="2.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.4" y="10" width="15.2" height="10.6" rx="3"/><path d="M8 10V7.4a4 4 0 0 1 8 0V10"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.9.5-1.2 1-1.2 1.9v.4"/><path d="M12 17.4h.01"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14.8 4.6h3.6a1 1 0 0 1 1 1v12.8a1 1 0 0 1-1 1h-3.6"/><path d="M9.6 15.8 5.8 12l3.8-3.8M5.8 12h9.6"/></symbol>
+  <symbol id="i-trending-up" viewBox="0 0 24 24"><path d="M3.4 17 9 11.4l3.6 3.6 7.4-7.4"/><path d="M15 7.6h6v6"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.4" y="5" width="17.2" height="15.4" rx="3"/><path d="M8 3.2v3.6M16 3.2v3.6M3.4 10h17.2"/></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9.6" cy="8" r="3.4"/><path d="M3.4 20v-1.2a4.4 4.4 0 0 1 4.4-4.4h3.6a4.4 4.4 0 0 1 4.4 4.4V20"/><path d="M19 8.4v5.2M16.4 11h5.2"/></symbol>
+  <symbol id="i-rupee" viewBox="0 0 24 24"><path d="M7 4.2h10M7 8.2h10M15.8 4.2c0 4.2-3.2 6.4-7.2 6.4H7l9 9.2"/></symbol>
+  <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M4 5.4v13.2M6.6 5.4v13.2M9.6 5.4v13.2M12 5.4v13.2M15.4 5.4v13.2M18.2 5.4v13.2M20.4 5.4v13.2"/></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7.6" cy="7.6" r="2.6"/><circle cx="16.4" cy="16.4" r="2.6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.2 19.8h4L19.4 8.6a2 2 0 0 0-2.8-2.8L5.4 17z"/><path d="M14.6 7.8 17.8 11"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.4 7h15.2M9.4 7V4.4h5.2V7"/><path d="M6.6 7l.9 12.4a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9L17.4 7"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.4 18.6h9.8a3.8 3.8 0 0 0 .4-7.6 5.4 5.4 0 0 0-10.4 1.2 3.4 3.4 0 0 0 .2 6.4z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.8 21 20H3z"/><path d="M12 9.6v4.2"/><path d="M12 17.1h.01"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.2" width="18" height="12.6" rx="2.4"/><path d="M9 20.2h6M12 16.8v3.4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11v5.4"/><path d="M12 7.8h.01"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m8.2 12.4 2.7 2.7 4.9-5.3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20.2 4.2v5h-5"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M20.6 11.6a8.2 8.2 0 0 1-11.9 7.3L4 20.2l1.4-4.5a8.2 8.2 0 1 1 15.2-4.1z"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.4 12.8 12.6 20.6 3.6 11.6V3.6h8z"/><circle cx="8" cy="8" r="1.3"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.8" r="3.8"/><path d="m11 13 9-9M16.4 3.6 20.4 7.6M14 6l4 4"/></symbol>
+</svg>
+  <header class="app-bar">
+    <div class="app-bar__left">
+      <a class="app-bar__back" href="app.html">
+        <svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+        <span>Prototype</span>
+      </a>
+      <span class="app-bar__title">Business Dost</span>
+      <span class="app-bar__pill app-bar__pill--live">Live · saved on this device</span>
+    </div>
+    <div class="app-bar__right">
+      <button class="app-bar__ghost" id="theme-btn" type="button" aria-label="Switch theme">
+        <svg class="i" aria-hidden="true"><use href="#i-moon"/></svg>
+        <span>Dark</span>
+      </button>
+      <button class="app-bar__ghost" id="home-btn" type="button" aria-label="Go to the home screen">
+        <svg class="i" aria-hidden="true"><use href="#i-home"/></svg>
+        <span>Home</span>
+      </button>
+      <a class="app-bar__ghost" href="index.html">
+        <svg class="i" aria-hidden="true"><use href="#i-help"/></svg>
+        <span>Design review</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="stage__inner">
+      <div class="device" id="device">
+        <div class="island"></div>
+        <div class="app-host" id="app-host" aria-live="polite"></div>
+      </div>
+      <p class="hint">Real data, saved in this browser. Speak a sale with the <b>Dost</b> orb, or add one by hand — the dashboard, stock and dues all follow.</p>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/live.js"></script>
+</body>
+</html>
