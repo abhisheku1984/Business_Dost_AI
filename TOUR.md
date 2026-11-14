@@ -15,6 +15,24 @@ If you double-clicked `design/index.html`, the demo is the file `design/demo.htm
 
 ---
 
+## 0 · Use the app (3 minutes)
+
+Open **`app.html`** (`http://localhost:4173/app.html`). This is not a gallery — it is the app, wired:
+
+- Tap the **tabs**: Home, Sales, Customers, More all navigate.
+- Tap **New sale** / **Expense** on the dashboard — they open their screens.
+- Tap **Review** or **Approve** on “Needs your approval” — you land in Approvals; approving the top
+  draft strikes the buttons, shows “Approved · saved to today’s sales”, drops the count from 3 to 2.
+- Tap the **Dost orb** (or “Ask Dost”) — the voice assistant opens. Tap the mic, watch the Hinglish
+  transcript type itself, then approve or reject the draft.
+- Tap the moon in the top bar — every screen repaints in dark.
+- Tap anything unwired and it tells you what that thing would do, instead of nothing.
+
+- [ ] The tabs, the approval and the voice loop all responded
+- [ ] It felt like an app, not a slideshow
+
+---
+
 ## 1 · The story first (2 minutes)
 
 Open **`demo.html`**. It plays by itself: morning dashboard → “1 of 3 needs your approval” →

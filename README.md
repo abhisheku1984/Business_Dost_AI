@@ -27,6 +27,14 @@ No build step and no network needed — all fonts and icons are local.
 
 The page works offline and is designed for both desktop review and a 390 px phone.
 
+### Open the working app
+
+[`design/app.html`](design/app.html) is the app itself, running: the five tabs navigate, **New sale**
+and **Expense** open their screens, the approval card approves (the count drops, the card shows
+“Approved”), the **Dost** orb opens the voice assistant — talk it through mic → transcript → draft →
+approve, and the theme switch repaints all 16 screens. Anything not wired yet says so instead of
+doing nothing. On a phone it runs full-bleed; on a desktop it sits in a device frame.
+
 ### Watch the 30-second demo
 
 The fastest way to see the product: [`design/demo.html`](design/demo.html) plays itself — no clicks.
@@ -57,6 +65,7 @@ What to do first:
 
 ```
 design/
+  app.html              The app itself: wired navigation + the live voice assistant
   demo.html             Self-playing 30-second demo (autopilot over the real screens)
   index.html            Review site — all sections, inline SVG sprite, modal specs
   css/

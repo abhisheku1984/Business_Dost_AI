@@ -822,3 +822,54 @@ body.modal-open { overflow: hidden; }
 .start-card__d { font-size: 11.5px; line-height: 1.45; color: var(--ink-3); }
 @media (max-width: 900px) { .start-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .start-grid { grid-template-columns: 1fr; } }
+
+/* Door into the running app */
+.navlink--app { margin-top: 8px; color: var(--brand-text); font-weight: 600; }
+.navlink--app .navlink__num { color: var(--brand-text); }
+.hero__doors { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 18px; }
+.hero__doors .hero__demo { margin-top: 0; }
+
+.launch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  border-radius: 20px;
+  text-decoration: none;
+  color: #eafaf5;
+  background:
+    radial-gradient(120% 180% at 100% 0%, rgba(84, 180, 242, .28), transparent 60%),
+    linear-gradient(135deg, #0a6a56, #08503f 70%);
+  box-shadow: 0 24px 50px -30px rgba(10, 106, 86, .65);
+  transition: transform var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+.launch:hover { transform: translateY(-2px); box-shadow: 0 30px 60px -30px rgba(10, 106, 86, .75); }
+.launch__l { display: grid; gap: 4px; }
+.launch__badge {
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #7ff0d2;
+}
+.launch__title { font-size: 22px; font-weight: 680; letter-spacing: -0.02em; }
+.launch__sub { font-size: 12.5px; line-height: 1.5; color: rgba(234, 250, 245, .78); max-width: 46ch; }
+.launch__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .14);
+  border: 1px solid rgba(255, 255, 255, .22);
+  font-size: 13px;
+  font-weight: 600;
+}
+.launch__cta .i { width: 13px; height: 13px; }
+@media (max-width: 640px) {
+  .launch { flex-direction: column; align-items: flex-start; gap: 14px; }
+}

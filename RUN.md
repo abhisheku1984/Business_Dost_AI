@@ -42,7 +42,7 @@ Review:  http://localhost:4173/
 Demo:    http://localhost:4173/demo.html
 ```
 
-Open the URL on the **Review** line. If port 4173 is busy it says so and moves to 4174, 4175… —
+Open the URL on the **Review** line. The app is one path further along: `<that url>app.html`. If port 4173 is busy it says so and moves to 4174, 4175… —
 useful when an older copy of the site is still running somewhere else.
 
 If Python is not installed, the script simply opens the site directly (Option 1).
@@ -100,6 +100,7 @@ and open `design/index.html` (Option 1) or run the launcher (Option 2).
 
 | I want to… | Do |
 | --- | --- |
+| use the app | open `design/app.html` (or `/app.html` on the local server) — tabs, approvals and the voice assistant work |
 | see the review site | open `design/index.html`, or double-click `run.bat` / `run.command` / `./run.sh` |
 | watch the demo | open `design/demo.html` (plays itself), or `demo/business-dost-demo.mp4` |
 | move the folder elsewhere | it is self-contained — copy the whole folder; keep `design/assets/fonts/` with it |

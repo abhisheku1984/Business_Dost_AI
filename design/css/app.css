@@ -1,0 +1,193 @@
+/* =====================================================================
+   Business Dost AI — the working app shell
+   Desktop: a device frame you can click through.
+   Phone: the same app, full bleed, as close to installed as a web page gets.
+   ===================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body.app {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- Chrome ---------------- */
+.app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+}
+.app-bar__left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.app-bar__right { display: flex; align-items: center; gap: 8px; }
+.app-bar__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 12.5px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 10px;
+  transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.app-bar__back:hover { background: var(--surface-3); color: var(--ink); }
+.app-bar__back .i { width: 14px; height: 14px; }
+.app-bar__title { font-weight: 650; font-size: 13.5px; letter-spacing: -0.01em; }
+.app-bar__pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--brand-text);
+  background: var(--brand-soft);
+  padding: 5px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.app-bar__ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.app-bar__ghost:hover { border-color: var(--line-strong, var(--line)); color: var(--ink); }
+.app-bar__ghost .i { width: 14px; height: 14px; }
+
+/* ---------------- Stage ---------------- */
+.stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px 34px;
+  min-height: 0;
+  background:
+    radial-gradient(1100px 520px at 50% -10%, color-mix(in srgb, var(--brand) 8%, transparent), transparent 70%),
+    var(--bg);
+}
+.stage__inner { display: grid; justify-items: center; gap: 16px; }
+.device { --s: 1; }
+.hint { margin: 0; font-size: 12px; color: var(--ink-3); text-align: center; }
+.hint b { color: var(--ink-2); font-weight: 600; }
+
+.app-host {
+  width: var(--phone-w);
+  height: var(--phone-h);
+  position: relative;
+  overflow: hidden;
+  border-radius: 54px;
+  background: var(--bg);
+}
+.app-host.is-swapping { opacity: .25; transition: opacity 90ms var(--ease-standard); }
+
+/* ---------------- Toast ---------------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 12px);
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 18px 40px -18px rgba(9, 12, 20, .55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-standard), transform 160ms var(--ease-standard);
+  z-index: 50;
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------------- Approved state inside Approvals ---------------- */
+.appr-card.is-approved { box-shadow: inset 0 0 0 1px var(--brand-ring, var(--brand)), 0 1px 2px rgba(9, 12, 20, .05); }
+.appr-card.is-approved .appr-card__actions { display: none; }
+.appr-done {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--success-soft, var(--brand-soft));
+  color: var(--success-text, var(--brand-text));
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.appr-done .i { width: 14px; height: 14px; }
+
+/* ---------------- Fit the frame to shorter screens ---------------- */
+@media (max-height: 980px) { .stage__inner { zoom: .88; } }
+@media (max-height: 900px) { .stage__inner { zoom: .8; } }
+@media (max-height: 820px) { .stage__inner { zoom: .72; } }
+@media (max-height: 740px) { .stage__inner { zoom: .64; } }
+
+/* ---------------- Phone: full bleed ---------------- */
+@media (max-width: 560px) {
+  body.app { height: 100dvh; overflow: hidden; }
+  .app-bar { height: 44px; padding: 6px 10px; gap: 8px; flex: none; }
+  .app-bar__title { display: none; }
+  .app-bar__right a { display: none; }
+  .app-bar__ghost span { display: none; }
+  .app-bar__ghost { padding: 0 9px; }
+  .app-bar__pill { font-size: 9.5px; padding: 4px 7px; }
+  .stage {
+    position: fixed;
+    left: 0; right: 0; top: 44px; bottom: 0;
+    padding: 0;
+    display: block;
+    min-height: 0;
+  }
+  .stage__inner { zoom: 1; display: block; width: 100%; height: 100%; gap: 0; }
+  .hint { display: none; }
+  .device {
+    width: 100%;
+    height: 100%;
+    transform: none;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .device::before, .device::after { display: none; }
+  .island { display: none; }
+  .app-host {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .app-host .screen { width: 100%; height: 100%; border-radius: 0; }
+  .app-host .statusbar { display: none; }
+  .toast { bottom: max(16px, calc(env(safe-area-inset-bottom) + 76px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen--enter { animation: none; }
+}

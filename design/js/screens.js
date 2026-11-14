@@ -49,11 +49,11 @@
       ${items
         .map(([key, label, icn]) =>
           key === "ai"
-            ? `<div class="tabbar__orb-wrap" aria-label="Ask Dost">
+            ? `<div class="tabbar__orb-wrap" aria-label="Ask Dost" data-go="assistant" role="button" tabindex="0">
                  <span class="tabbar__orb">${icon("ai")}</span>
                  <span class="tabbar__label">Dost</span>
                </div>`
-            : `<a class="tabbar__item ${active === key ? "tabbar__item--active" : ""}" href="#" aria-label="${label}">
+            : `<a class="tabbar__item ${active === key ? "tabbar__item--active" : ""}" href="#" aria-label="${label}" data-go="${key === "more" ? "settings" : key}">
                  ${icon(icn)}<span>${label}</span>
                </a>`
         )
@@ -362,10 +362,10 @@
           </section>
 
           <div class="qa-row">
-            <button class="qa" type="button"><span class="qa__tile qa__tile--brand">${icon("plus")}</span>New sale</button>
-            <button class="qa" type="button"><span class="qa__tile">${icon("wallet")}</span>Expense</button>
-            <button class="qa" type="button"><span class="qa__tile">${icon("scan")}</span>Scan bill</button>
-            <button class="qa" type="button"><span class="qa__tile qa__tile--ai">${icon("ai")}</span>Ask Dost</button>
+            <button class="qa" type="button" data-go="sales"><span class="qa__tile qa__tile--brand">${icon("plus")}</span>New sale</button>
+            <button class="qa" type="button" data-go="expenses"><span class="qa__tile">${icon("wallet")}</span>Expense</button>
+            <button class="qa" type="button" data-toast="Bill scanning arrives with the app build — the camera flow is designed in Handoff."><span class="qa__tile">${icon("scan")}</span>Scan bill</button>
+            <button class="qa" type="button" data-go="assistant"><span class="qa__tile qa__tile--ai">${icon("ai")}</span>Ask Dost</button>
           </div>
 
           <section class="attention" aria-label="Pending approval">
@@ -381,15 +381,15 @@
               </div>
             </div>
             <div class="attention__actions">
-              <button class="btn btn--outline btn--sm" type="button">Review</button>
-              <button class="btn btn--primary btn--sm" type="button">${icon("check")} Approve</button>
+              <button class="btn btn--outline btn--sm" type="button" data-go="approvals">Review</button>
+              <button class="btn btn--primary btn--sm" type="button" data-go="approvals">${icon("check")} Approve</button>
             </div>
           </section>
 
           <section>
             <div class="section-label">
               <span class="section-label__title">Recent activity</span>
-              <span class="section-label__action">See all</span>
+              <span class="section-label__action" data-go="sales" role="button" tabindex="0">See all</span>
             </div>
             <div class="people" style="margin-top:8px">
               ${invoiceRow({ ini: "RK", tone: "mint", name: "Ramesh Kumar", sub: "Invoice #2419 · UPI", amount: "+₹4,200", status: "Paid", toneStatus: "success" })}
@@ -905,7 +905,7 @@
     <div class="screen">
       ${statusbar()}
       <div class="chat-head">
-        <button class="icon-btn icon-btn--plain" aria-label="Back">${icon("chevron-left")}</button>
+        <button class="icon-btn icon-btn--plain" aria-label="Back" data-back>${icon("chevron-left")}</button>
         <div class="chat-head__title">
           <b>Dost</b>
           <span><i></i> Draft ready · Hinglish</span>
@@ -1016,8 +1016,8 @@
                 <span>96% confidence</span>
               </div>
               <div class="appr-card__actions">
-                <button class="btn btn--outline" type="button">Reject</button>
-                <button class="btn btn--primary" type="button">${icon("check")} Approve</button>
+                <button class="btn btn--outline" type="button" data-toast="Rejected — Dost asks for one correction instead of guessing.">Reject</button>
+                <button class="btn btn--primary" type="button" data-approve>${icon("check")} Approve</button>
               </div>
             </section>
 
@@ -1037,7 +1037,7 @@
               </div>
               <div class="appr-card__actions">
                 <button class="btn btn--outline" type="button">Review</button>
-                <button class="btn btn--primary" type="button">${icon("check")} Approve</button>
+                <button class="btn btn--primary" type="button" data-approve>${icon("check")} Approve</button>
               </div>
             </section>
 
