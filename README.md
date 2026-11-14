@@ -83,10 +83,11 @@ Full detail: [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) and [`design/token
 
 ## Quality checks done
 
-- Every screen rendered and reviewed at 390 × 844 in **both themes** — no overlap, clipping or
-  double-scrolled layouts.
-- Contrast measured: body text ≥ 4.5:1, large text ≥ 3:1 in both themes (table in the review site).
-- Touch targets ≥ 44 pt; focus states visible; icon-only controls labelled.
+- All 16 screens rendered and reviewed at 390 × 844 in light; dark mode reviewed across entry, home,
+  expenses, assistant draft and settings — no overlap, clipping or double-scrolled layouts.
+- Contrast measured for both themes: body text ≥ 4.5:1, large text ≥ 3:1 (table in the review site).
+- Primary actions are 44–52 pt; chips keep a 44 pt invisible hit area. Focus states are visible and
+  icon-only controls are labelled.
 - Review site checked at 1440 px and 390 px: no horizontal scroll, gallery and modal usable on phone.
 - Voice prototype exercised through all states: idle → listening → thinking → draft → approve / reject /
   undo, plus language switching and audio playback.

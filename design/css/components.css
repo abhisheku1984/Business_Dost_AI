@@ -262,6 +262,7 @@
 
 /* ---------- Chips ---------- */
 .chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -277,6 +278,16 @@
   white-space: nowrap;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-standard);
+}
+/* Chips stay visually compact but keep a 44 pt touch target. */
+.chip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
 }
 .chip .i { width: 15px; height: 15px; }
 .chip:hover { border-color: var(--line-2); color: var(--ink); }
