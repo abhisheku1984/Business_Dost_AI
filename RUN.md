@@ -78,6 +78,9 @@ folder over `http://localhost:4173` (`python3 -m http.server`), and it is option
 
 ## The 90-second walkthrough
 
+For the full checklist — all 16 screens, the prototype's state machine, dark mode, motion,
+accessibility and what a build team receives — see [`TOUR.md`](TOUR.md).
+
 Once the site is open:
 
 1. **Overview** — the point of view and the four principles.

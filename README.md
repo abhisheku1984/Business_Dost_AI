@@ -38,6 +38,9 @@ approve it in one tap.
 - **As video:** [`demo/business-dost-demo.mp4`](demo/business-dost-demo.mp4) (390×844, 25 s, silent)
   and [`demo/business-dost-demo.gif`](demo/business-dost-demo.gif) (1.1 MB, loops).
 
+**Ten-minute tour:** [`TOUR.md`](TOUR.md) — every feature in order, with what to judge and what to
+answer at the end. Start there if you want to see everything without hunting for it.
+
 What to do first:
 
 1. **Overview** — the point of view and the four principles.
