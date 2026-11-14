@@ -573,3 +573,19 @@
   .lv-voice__foot { width: 100%; max-width: 620px; box-sizing: border-box; padding: 0 6px 26px; }
   .lv-voice__chips button { font-size: 12px; }
 }
+
+/* "add something new" rows inside a picker */
+.ctr-row--new {
+  margin-top: 4px;
+  border: 1px dashed var(--line-2);
+  color: var(--brand-text);
+}
+.ctr-row--new:hover { background: var(--brand-soft); border-color: transparent; }
+.ctr-row--new .i { width: 16px; height: 16px; flex: none; }
+.ctr-row--new .ctr-row__name b { color: var(--brand-text); }
+.ctr-row--new .ctr-row__name small { color: var(--ink-3); }
+
+/* the product/service switch should not span the whole form */
+@media (min-width: 900px) {
+  #item-kind-seg { max-width: 340px; }
+}

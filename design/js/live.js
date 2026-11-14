@@ -509,7 +509,8 @@
           .replace(/\b(for|to|paid|pay|rupees|rs|amount|cash|upi|udhaar|aaj|today|kal|and|the|bill)\b/gi, " ")
           .replace(/\s+/g, " ")
           .trim();
-        if (name && name.length > 1) {
+        const junk = /\b(add|adding|create|creating|new|product|products|item|items|customer|supplier|please|want|update|edit|delete|remove|show|list|bill|invoice|quotation)\b/i;
+        if (name && name.length > 1 && !junk.test(name)) {
           customer = { id: null, name: titleCase(name) };
           notes.push(`New customer: ${customer.name}`);
         }
@@ -693,7 +694,78 @@
     if (root) root.classList.toggle("is-live", ui.voice.live);
   }
 
+  /* ------------------------------------------------------------------ */
+  /* "add something new" is a different job from "sell something"       */
+  /* ------------------------------------------------------------------ */
+  const CREATE_VERB = /\b(add|adding|create|creating|new|naya|nayi|nawa|nawi|jodo|jodna|banao|banana|banau|बनाओ|बनाना|नया|नयी|जोड़|जोड़ो)\b/;
+  const SALE_VERB = /\b(sold|sell|selling|sale|becha|bech|bechi|bikri|bika|diya|दिया|बेचा|बेच|बिक्री)\b/;
+  const CREATE_TARGETS = [
+    { kind: "item", re: /\b(products?|items?|maal|saamaan|saman|services?|catalogue|katalog)\b/ },
+    { kind: "customer", re: /\b(customers?|grahak|party|client|khata|ग्राहक)\b/ },
+    { kind: "supplier", re: /\b(suppliers?|vendor|dukandar|dealer|wholesaler|सप्लायर)\b/ },
+    { kind: "expense", re: /\b(expenses?|kharcha|kharch|खर्च)\b/ },
+    { kind: "purchase", re: /\b(purchase|kharid|kharida|खरीद)\b/ },
+    { kind: "quote", re: /\b(quotations?|quotes?|estimate|quotation)\b/ },
+  ];
+  const CREATE_FILLER = /\b(i|we|me|want|wanna|need|to|please|pls|add|adding|create|creating|new|naya|nayi|nawa|nawi|jodo|jodna|banao|banana|banau|kar|karo|karna|hai|do|daal|daalo|a|an|the|my|our|one|another|some|for|of|ka|ki|ke)\b/g;
+
+  /* returns {kind, name, raw} when the sentence is a "create" request, else null */
+  function createIntent(text) {
+    const raw = String(text || "").trim();
+    const t = " " + raw.toLowerCase().replace(/[.,!?"']/g, " ") + " ";
+    if (SALE_VERB.test(t)) return null;                 /* “becha” always wins */
+    if (!CREATE_VERB.test(t)) return null;
+    const hit = CREATE_TARGETS.find((x) => x.re.test(t));
+    if (!hit) return null;
+    let name = t.replace(hit.re, " ").replace(CREATE_FILLER, " ").replace(/\s+/g, " ").trim();
+    if (!/[a-z\u0900-\u097F]/.test(name)) name = "";
+    if (name.length > 40) name = name.slice(0, 40).trim();
+    return { kind: hit.kind, name: name ? titleCase(name) : "", raw };
+  }
+
+  const CREATE_LABEL = {
+    item: "product", customer: "customer", supplier: "supplier",
+    expense: "expense", purchase: "purchase", quote: "quotation",
+  };
+
+  function openCreate(intent) {
+    const name = intent.name || "";
+    const service = /\b(service|services)\b/i.test(intent.raw || "");
+    ui.itemDraft = null;
+    ui.customerDraft = null;
+    ui.supplierDraft = null;
+    ui.itemReturn = null;
+
+    if (intent.kind === "item") {
+      ui.itemDraft = { id: "", kind: service ? "service" : "product", name, unit: service ? "hour" : "piece" };
+      go("item-new");
+    } else if (intent.kind === "customer") {
+      ui.customerDraft = { name, phone: "" };
+      go("customer-new");
+    } else if (intent.kind === "supplier") {
+      ui.supplierDraft = { name, phone: "", gstin: "" };
+      go("supplier-new");
+    } else if (intent.kind === "expense") {
+      go("expense");
+    } else if (intent.kind === "purchase") {
+      go("purchase-new");
+    } else if (intent.kind === "quote") {
+      if (ui.counter) ui.counter.mode = "quote";
+      ui.sale.mode = "quote";
+      go("sale-new");
+    }
+    toast(`Opening a new ${CREATE_LABEL[intent.kind]}${name ? ` · ${name}` : ""} — nothing is saved until you save it`);
+  }
+
   function makeDraft(text) {
+    const intent = createIntent(text);
+    if (intent) {
+      ui.voice.heard = "";
+      ui.voice.interim = "";
+      ui.voice.typing = false;
+      openCreate(intent);
+      return;
+    }
     const parsed = parse(text);
     db.draft = Object.assign({}, parsed, { at: Date.now() });
     persist();
@@ -1186,6 +1258,7 @@
   }
 
   function viewCustomerForm() {
+    const d = ui.customerDraft || {};
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
@@ -1196,11 +1269,11 @@
         <div class="lv-form">
           <div class="lv-field">
             <span class="lv-label">Name</span>
-            <input class="lv-input" id="cust-name" placeholder="e.g. Ramesh Kumar" />
+            <input class="lv-input" id="cust-name" placeholder="e.g. Ramesh Kumar" value="${esc(d.name || "")}" autofocus />
           </div>
           <div class="lv-field">
             <span class="lv-label">Phone (optional)</span>
-            <input class="lv-input" id="cust-phone" type="tel" inputmode="tel" placeholder="98200 11223" />
+            <input class="lv-input" id="cust-phone" type="tel" inputmode="tel" placeholder="98200 11223" value="${esc(d.phone || "")}" />
           </div>
           <div class="lv-actions">
             <button class="btn btn--primary" data-act="save-customer">${icon("check")} Add customer</button>
@@ -1345,7 +1418,25 @@
         toast(`Quotation Q-${quote.no} saved · ${money(amount)}`);
         return;
       }
-      const sale = addSale({ customerId: c.customerId, method: c.method, lines });
+      let customerId = c.customerId;
+      let customerName = "";
+      if (customerId === "__new" || !customerId) {
+        const typed = ((($("#counter-newcustomer") || {}).value) || c.newCustomer || "").trim();
+        if (!typed) throw new Error("Type the new customer's name, or pick an existing one");
+        const found = db.customers.find((x) => x.name.toLowerCase() === typed.toLowerCase());
+        if (found) {
+          customerId = found.id;
+        } else {
+          const created = { id: uid("c"), name: titleCase(typed), phone: "" };
+          db.customers.push(created);
+          customerId = created.id;
+          customerName = created.name;
+          logAct("Customer added", created.name);
+        }
+        c.customerId = customerId;
+        c.newCustomer = "";
+      }
+      const sale = addSale({ customerId, customerName, method: c.method, lines });
       logAct("Sale saved", `#INV-${sale.no} · ${money(sale.amount)}`);
       ui.cart = [];
       c.q = "";
@@ -1359,8 +1450,14 @@
   function counterResultsHtml() {
     const c = counterState();
     const list = counterMatches();
-    if (!list.length) return `<div class="lv-empty"><b>Nothing matches “${esc(c.q)}”.</b><br/>Check the spelling, or add it under Products.</div>`;
-    return list.map((i, idx) => {
+    const addRow = `<button class="ctr-row ctr-row--new" data-act="counter-new" data-name="${esc(c.q || "")}">
+        ${icon("plus")}
+        <span class="ctr-row__name">
+          <b>${c.q ? `Add “${esc(c.q)}” as a new ${c.newKind === "service" ? "service" : "product"}` : "Add a new product"}</b>
+          <small>Opens the form — nothing is saved until you save it</small>
+        </span>
+      </button>`;
+    const rows = list.map((i, idx) => {
       const service = isService(i);
       const low = !service && Number(i.stock) <= Number(i.low);
       return `<button class="ctr-row ${idx === c.sel ? "is-sel" : ""}" data-act="counter-add" data-id="${i.id}">
@@ -1374,6 +1471,10 @@
         </span>
       </button>`;
     }).join("");
+    if (!rows) {
+      return `<div class="lv-empty" style="margin:8px"><b>Nothing matches “${esc(c.q)}”.</b><br/>Add it below — no need to leave this screen.</div>` + addRow;
+    }
+    return rows + addRow;
   }
 
   function viewCounter() {
@@ -1590,9 +1691,10 @@
           </div>
           <div class="lv-field">
             <span class="lv-label">Category</span>
-            <select class="lv-select" id="exp-category">
-              ${["Transport", "Stock", "Rent", "Electricity", "Salary", "Other"].map((c) => `<option>${c}</option>`).join("")}
-            </select>
+            <input class="lv-input" id="exp-category" list="exp-categories" value="Transport" placeholder="Type or pick" autocomplete="off" />
+            <datalist id="exp-categories">
+              ${[...new Set(["Transport", "Stock", "Rent", "Electricity", "Salary", "Tea", "Packing", "Freight", "Repair", "Other", ...db.expenses.map((e) => e.category).filter(Boolean)])].map((c) => `<option value="${esc(c)}"></option>`).join("")}
+            </datalist>
           </div>
           <div class="lv-field">
             <span class="lv-label">Note (optional)</span>
@@ -1684,14 +1786,20 @@
             <span class="lv-label">Customer</span>
             <select class="lv-select" id="draft-customer">
               ${db.customers.map((c) => `<option value="${c.id}" ${c.id === d.customerId ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
-              <option value="__new" ${!d.customerId ? "selected" : ""}>＋ ${esc(d.customerName || "New customer")}</option>
+              <option value="__new" ${!d.customerId || d.customerId === "__new" ? "selected" : ""}>＋ New customer…</option>
             </select>
+            ${!d.customerId || d.customerId === "__new" ? `<input class="lv-input" id="draft-newcustomer" placeholder="Customer name — type a new one" value="${esc(d.customerName || "")}" style="margin-top:8px" />` : ""}
           </div>
           <div class="lv-field">
             <span class="lv-label">Item</span>
             <select class="lv-select" id="draft-item">
               ${db.items.map((i) => `<option value="${i.id}" ${i.id === d.itemId ? "selected" : ""}>${esc(i.name)}</option>`).join("")}
+              <option value="__new" ${d.itemId === "__new" ? "selected" : ""}>＋ New product…</option>
             </select>
+            ${d.itemId === "__new" ? `<div class="lv-pair" style="margin-top:8px">
+              <div class="lv-field"><span class="lv-label">Name</span><input class="lv-input" id="draft-newitem-name" placeholder="New product name" value="${esc(d.newItemName || "")}" /></div>
+              <div class="lv-field"><span class="lv-label">Unit</span><select class="lv-select" id="draft-newitem-unit">${UNITS.map((u) => `<option ${u === (d.newItemUnit || "piece") ? "selected" : ""}>${u}</option>`).join("")}</select></div>
+            </div>` : ""}
           </div>
           <div class="lv-pair">
             <div class="lv-field">
@@ -2134,6 +2242,18 @@
     if (!q) return;
     if (!Array.isArray(db.chat)) db.chat = [];
     db.chat.push({ role: "me", text: q, at: Date.now() });
+    const intent = createIntent(q);
+    if (intent) {
+      db.chat.push({
+        role: "dost",
+        text: `That's a new ${CREATE_LABEL[intent.kind]}, not a sale — so I've opened the ${CREATE_LABEL[intent.kind]} form${intent.name ? ` for “${intent.name}”` : ""}. Fill in what you know and press save. I won't write anything myself.`,
+        chips: [{ label: "Back to chat", nav: "ask" }],
+        at: Date.now() + 1,
+      });
+      persist();
+      openCreate(intent);
+      return;
+    }
     const a = answerFor(q);
     db.chat.push({ role: "dost", text: a.text, chips: a.chips || [], at: Date.now() + 1 });
     if (db.chat.length > 80) db.chat = db.chat.slice(-80);
@@ -3072,6 +3192,7 @@
   }
 
   function viewSupplierForm() {
+    const d = ui.supplierDraft || {};
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
@@ -3082,16 +3203,16 @@
         <div class="lv-form">
           <div class="lv-field">
             <span class="lv-label">Name</span>
-            <input class="lv-input" id="sup-name" placeholder="e.g. Ultratech Depot" />
+            <input class="lv-input" id="sup-name" placeholder="e.g. Ultratech Depot" value="${esc(d.name || "")}" autofocus />
           </div>
           <div class="lv-pair">
             <div class="lv-field">
               <span class="lv-label">Phone</span>
-              <input class="lv-input" id="sup-phone" type="tel" inputmode="tel" placeholder="optional" />
+              <input class="lv-input" id="sup-phone" type="tel" inputmode="tel" placeholder="optional" value="${esc(d.phone || "")}" />
             </div>
             <div class="lv-field">
               <span class="lv-label">GSTIN</span>
-              <input class="lv-input" id="sup-gstin" placeholder="optional" />
+              <input class="lv-input" id="sup-gstin" placeholder="optional" value="${esc(d.gstin || "")}" />
             </div>
           </div>
           <div class="lv-actions">
@@ -3189,6 +3310,7 @@
             <select class="lv-select" id="pur-item">
               ${products().map((i) => `<option value="${i.id}" ${i.id === itemId ? "selected" : ""}>${esc(i.name)} — ${i.stock} ${i.unit} in stock</option>`).join("")}
             </select>
+            <button class="btn btn--ghost btn--sm" data-act="purchase-new-item" style="margin-top:6px">${icon("plus")} New product</button>
           </div>
           <div class="lv-pair">
             <div class="lv-field">
@@ -3831,6 +3953,8 @@
 
   function go(name) {
     const base = (name || "").split(":")[0];
+    /* a "return to the bill" hint only survives while the form it belongs to is open */
+    if (ui.itemReturn && !["item-new", "item-edit"].includes(base)) ui.itemReturn = null;
     if (base === "voice" && !ui.voice.live) {
       ui.voice.heard = "";
       ui.voice.interim = "";
@@ -4033,12 +4157,40 @@
     const r = $("#draft-rate");
     const item = $("#draft-item");
     const cust = $("#draft-customer");
+    const custNameInput = $("#draft-newcustomer");
+    const newItemName = $("#draft-newitem-name");
     if (q) d.qty = Number(q.value) || 0;
     if (r) d.rate = Number(r.value) || 0;
     if (item) d.itemId = item.value;
     if (cust) d.customerId = cust.value;
+    if (custNameInput) d.customerName = custNameInput.value;
+    if (newItemName) {
+      d.newItemName = newItemName.value;
+      const u = $("#draft-newitem-unit");
+      if (u) d.newItemUnit = u.value;
+    }
 
     try {
+      /* a product that does not exist yet is created on approval, never silently */
+      if (d.itemId === "__new") {
+        const name = String(d.newItemName || "").trim();
+        if (!name) throw new Error("Name the new product first");
+        const created = {
+          id: uid("it"),
+          name: titleCase(name),
+          kind: "product",
+          hsn: "",
+          unit: d.newItemUnit || "piece",
+          rate: Number(d.rate) || 0,
+          buy: 0,
+          stock: 0,
+          low: 10,
+        };
+        db.items.push(created);
+        d.itemId = created.id;
+        logAct("Product added", created.name);
+      }
+
       let customerId = d.customerId;
       let customerName = d.customerName;
       if (!customerId || customerId === "__new") {
@@ -4341,6 +4493,15 @@
         event.preventDefault();
         saveSale();
         break;
+      case "counter-new": {
+        event.preventDefault();
+        const typed = (act.getAttribute("data-name") || "").trim();
+        ui.itemDraft = { id: "", kind: counterState().newKind === "service" ? "service" : "product", name: typed ? titleCase(typed) : "" };
+        ui.itemReturn = "counter";
+        counterState().q = "";
+        go("item-new");
+        break;
+      }
       case "counter-add":
         event.preventDefault();
         counterAdd(act.getAttribute("data-id"));
@@ -4629,9 +4790,17 @@
           gstin: (($("#sup-gstin") || {}).value || "").trim(),
         };
         db.suppliers.push(created);
+        ui.supplierDraft = null;
         persist();
         go(`supplier:${created.id}`);
         toast(`${created.name} added`);
+        break;
+      }
+      case "purchase-new-item": {
+        event.preventDefault();
+        ui.itemDraft = { id: "", kind: "product", name: "" };
+        ui.itemReturn = "purchase";
+        go("item-new");
         break;
       }
       case "new-purchase":
@@ -4845,9 +5014,21 @@
           db.items.push(item);
           if (kind !== "service") logMove(item, stock, "open", "Opening stock");
           ui.itemDraft = null;
+          const back = ui.itemReturn;
+          ui.itemReturn = null;
           persist();
-          go("stock");
-          toast(`${item.name} added to your catalogue`);
+          if (back === "counter") {
+            if (!Array.isArray(ui.cart)) ui.cart = [];
+            ui.cart.push({ itemId: item.id, name: item.name, unit: item.unit, qty: 1, rate: item.rate });
+            go("sale-new");
+            toast(`${item.name} added and put on the bill`);
+          } else if (back === "purchase") {
+            go("purchase-new");
+            toast(`${item.name} added — pick it in the purchase line`);
+          } else {
+            go("stock");
+            toast(`${item.name} added to your catalogue`);
+          }
         }
         break;
       }
@@ -4874,9 +5055,18 @@
         if (exists) { toast(`${exists.name} is already in your list`); break; }
         const created = { id: uid("c"), name: titleCase(name), phone };
         db.customers.push(created);
+        ui.customerDraft = null;
         persist();
-        go("customers");
-        toast(`${created.name} added`);
+        logAct("Customer added", created.name);
+        if (db.settings.lastCreate === "sale") {
+          db.settings.lastCreate = null;
+          ui.sale.customerId = created.id;
+          go("sale-new");
+          toast(`${created.name} added — now on the bill`);
+        } else {
+          go("customers");
+          toast(`${created.name} added`);
+        }
         break;
       }
       case "restock-save": {
@@ -5151,6 +5341,14 @@
   document.addEventListener("change", (event) => {
     const t = event.target;
     if (!t) return;
+    if ((t.id === "draft-item" || t.id === "draft-customer") && db.draft) {
+      if (t.id === "draft-item") db.draft.itemId = t.value;
+      else db.draft.customerId = t.value;
+      render();
+      return;
+    }
+    if (t.id === "draft-newcustomer" && db.draft) db.draft.customerName = t.value;
+    if (t.id === "draft-newitem-name" && db.draft) db.draft.newItemName = t.value;
     if (t.id === "counter-customer") {
       counterState().customerId = t.value;
       render();
