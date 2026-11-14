@@ -1,0 +1,315 @@
+/* =====================================================================
+   Business Dost AI — Desktop shell
+   The same screens, laid out for a 1280–1600 px window with a permanent
+   left rail. Below 900 px the phone layout from live.css still applies.
+   ===================================================================== */
+
+/* the rail only exists on desktop */
+.dk-side { display: none; }
+.dk-user { display: none; }
+.workspace { display: block; }
+
+@media (min-width: 900px) {
+
+  /* ---------- window ---------- */
+  html, body.app { height: 100%; }
+  body.app { overflow: hidden; background: var(--bg); }
+
+  .app-bar {
+    height: 56px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    position: relative;
+    z-index: 20;
+  }
+  .app-bar__back { display: none; }               /* "Prototype" is a review-site link */
+  .app-bar__right a[href="index.html"] { display: none; }
+  #home-btn { display: none; }                    /* the rail does this job */
+  .app-bar__title { font-size: 14px; }
+
+  .stage {
+    display: block;
+    place-items: stretch;
+    padding: 0;
+    height: calc(100vh - 56px);
+    min-height: 0;
+    background: var(--bg);
+  }
+  .stage__inner {
+    display: block !important;
+    max-width: none !important;
+    width: 100% !important;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    gap: 0;
+    zoom: 1 !important;      /* app.css shrinks the phone frame on short screens */
+    justify-items: stretch;  /* app.css centres the phone; we want it to fill */
+  }
+  .hint { display: none; }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    height: 100%;
+  }
+  .app-host { width: 100%; height: 100%; border-radius: 0; }
+  .dk-content { min-width: 0; height: 100%; overflow: hidden; }
+
+  /* ---------- the phone becomes the window ---------- */
+  .device {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+  .device::before, .device::after { display: none; }
+  .island { display: none; }
+  .screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background: var(--bg);
+  }
+  .statusbar, .tabbar, .indicator { display: none; }
+  .screen__scroll { padding: 26px 36px 56px; scrollbar-width: thin; }
+  .screen__scroll--tabbar { padding-bottom: 56px; }
+  .screen__scroll::-webkit-scrollbar { display: block; width: 10px; height: 10px; }
+  .screen__scroll::-webkit-scrollbar-thumb {
+    background: var(--line-2); border-radius: 999px; border: 3px solid var(--bg);
+  }
+
+  /* ---------- page frame ---------- */
+  .shead, .sbody, .lv-form, .lv-appbar, .lv-chat, .lv-askbar, .lv-voice__body {
+    max-width: 1180px;
+    margin-left: 0;
+    margin-right: auto;
+    width: 100%;
+  }
+  .shead { margin-bottom: 4px; }
+  .lv-appbar { padding: 0 0 10px; margin-bottom: 6px; }
+  .lv-appbar [data-act="back"] { display: none; } /* the rail is the way back */
+  .lv-appbar h1 { font-size: 22px; letter-spacing: -0.02em; }
+  .lv-ask { height: 100%; }
+
+  /* ---------- grids get room ---------- */
+  .lv-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .lv-metrics { gap: 14px; }
+  .lv-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .lv-quick button { padding: 14px 8px 12px; font-size: 11.5px; }
+  .lv-pair { gap: 16px; }
+  .lv-form { max-width: 760px; }
+
+  /* ---------- dashboard: two columns ---------- */
+  .sbody--home {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr);
+    gap: 18px 20px;
+    align-items: start;
+    max-width: 1240px;
+  }
+  .home-main, .home-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .home-recent { grid-column: 1 / -1; margin-top: 4px; }
+  .home-side .lv-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-side .lv-metrics { flex-direction: column; gap: 8px; }
+  .home-side .lv-metric { display: flex; align-items: baseline; justify-content: space-between; }
+  .home-side .lv-metric b { font-size: 19px; }
+  .home-side .lv-metric span { order: -1; font-size: 10px; }
+  .home-side .lv-askcard { margin-top: 2px; }
+  .hero-card__value { font-size: 54px; }
+  .hero-card__spark { height: 96px; }
+  .lv-month__cell b { font-size: 19px; }
+
+  /* ---------- lists read like tables ---------- */
+  .people { border-radius: 14px; }
+  .lv-row-btn, .lv-data-row { padding: 13px 16px; border-radius: 0; }
+  .lv-row-btn:hover, .lv-data-row:hover { background: var(--brand-soft-2); }
+  .lv-row-btn .lv-row-title { font-size: 13.5px; }
+  .lv-row-sub { font-size: 11.5px; }
+  .lv-row-amount { font-size: 13px; }
+  .icon-tile { width: 34px; height: 34px; }
+  .avatar { width: 34px; height: 34px; font-size: 12px; }
+
+  /* ---------- inventory / movements ---------- */
+  .lv-moves { border-radius: 14px; }
+  .lv-move { padding: 12px 16px; }
+
+  /* ---------- chat gets a comfortable reading column ---------- */
+  .lv-ask { padding: 18px 36px 0; }
+  .lv-ask .lv-appbar { padding: 0 0 8px; }
+  .lv-chat { max-width: 900px; margin: 0 auto; width: 100%; padding: 10px 0 8px; }
+  .lv-askbar { max-width: 900px; margin: 0 auto; width: 100%; padding: 10px 0 14px; }
+
+  /* ---------- charts ---------- */
+  .lv-bars { gap: 10px; }
+  .lv-bars__col { max-width: 44px; }
+  .lv-msg__body { font-size: 13.5px; line-height: 1.6; }
+
+  /* ---------- buttons ---------- */
+  .btn--block { max-width: 760px; }
+  .lv-actions { max-width: 760px; }
+  /* a lone primary action at the top of a list screen should not span the window */
+  .sbody > .btn, .sbody > .btn--block, label.btn--block {
+    max-width: 340px;
+    align-self: flex-start;
+    width: auto;
+  }
+
+  /* ---------- sidebar ---------- */
+  .dk-side {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+    padding: 16px 12px 12px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .dk-side::-webkit-scrollbar { width: 8px; }
+  .dk-side::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: 2px solid var(--surface); }
+
+  .dk-brand { display: flex; align-items: center; gap: 10px; padding: 0 6px 14px; }
+  .dk-brand__mark {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border-radius: 10px;
+    background: var(--brand);
+    color: var(--on-brand);
+    flex: none;
+  }
+  .dk-brand__mark .i { width: 19px; height: 19px; }
+  .dk-brand__text { min-width: 0; }
+  .dk-brand__text b { display: block; font-size: 13.5px; font-weight: var(--fw-bold); letter-spacing: -0.01em; }
+  .dk-brand__text small {
+    display: block; font-size: 10.5px; color: var(--ink-3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .dk-new {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    width: 100%;
+    margin: 0 0 12px;
+    padding: 9px 12px;
+    border: 0; border-radius: 10px;
+    background: var(--brand); color: var(--on-brand);
+    font: inherit; font-size: 12.5px; font-weight: var(--fw-semi);
+    cursor: pointer;
+  }
+  .dk-new:hover { background: var(--brand-hover); }
+  .dk-new .i { width: 15px; height: 15px; }
+
+  .dk-group {
+    padding: 12px 8px 5px;
+    font-size: 9.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    font-weight: var(--fw-semi);
+  }
+  .dk-link {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0; border-radius: 9px;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit; font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .dk-link .i { width: 16px; height: 16px; flex: none; opacity: .78; }
+  .dk-link span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dk-link:hover { background: var(--surface-3); color: var(--ink); }
+  .dk-link.is-on {
+    background: var(--brand-soft);
+    color: var(--brand-text);
+    font-weight: var(--fw-semi);
+  }
+  .dk-link.is-on .i { opacity: 1; }
+  .dk-link__count {
+    min-width: 17px; height: 17px; padding: 0 5px;
+    display: grid; place-items: center;
+    border-radius: 999px;
+    background: var(--danger); color: #fff;
+    font-size: 9.5px; font-weight: var(--fw-bold);
+    flex: none;
+  }
+
+  .dk-side__foot { margin-top: auto; padding-top: 12px; }
+  .dk-side__storage {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 10.5px;
+    color: var(--ink-2);
+    line-height: 1.35;
+  }
+  .dk-side__storage .i { width: 14px; height: 14px; color: var(--brand-text); flex: none; }
+
+  /* header chip */
+  .dk-user {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    background: var(--surface-2);
+  }
+  .dk-user__dot {
+    width: 20px; height: 20px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: var(--brand-soft);
+    color: var(--brand-text);
+    font-size: 9.5px; font-weight: var(--fw-bold);
+  }
+}
+
+/* ---------- keyboard hint ---------- */
+@media (min-width: 900px) {
+  .dk-key {
+    margin-left: auto;
+    font-size: 9.5px;
+    color: var(--ink-4);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 4px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ---------- print: the invoice on A4 ---------- */
+@media print {
+  .app-bar, .dk-side, .hint, .toast, .statusbar, .tabbar, .indicator,
+  .lv-appbar [data-act="back"], .lv-actions, .lv-note, .lv-msg__speak { display: none !important; }
+  .stage, .stage__inner, .workspace, .dk-content, .device, .screen, .screen__scroll {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  .sbody { max-width: none !important; }
+  .invoice-card {
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    color: #000 !important;
+    page-break-inside: avoid;
+  }
+  .invoice-card * { color: #000 !important; }
+  .lr-head { border-bottom: 2px solid #000 !important; }
+  .lr-lines { border-bottom: 1px solid #999 !important; }
+  @page { margin: 16mm; }
+}

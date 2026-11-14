@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="css/screens.css" />
   <link rel="stylesheet" href="css/app.css" />
   <link rel="stylesheet" href="css/live.css" />
+  <link rel="stylesheet" href="css/desktop.css" />
 </head>
 <body class="app">
   <!-- inline sprite: every icon is a local symbol, no network -->
@@ -106,6 +107,7 @@
       <span class="app-bar__pill app-bar__pill--live" id="storage-pill">Live · saved on this device</span>
     </div>
     <div class="app-bar__right">
+      <span class="dk-user" id="dk-user" hidden></span>
       <button class="app-bar__ghost" id="theme-btn" type="button" aria-label="Switch theme">
         <svg class="i" aria-hidden="true"><use href="#i-moon"/></svg>
         <span>Dark</span>
@@ -127,9 +129,14 @@
 
   <main class="stage">
     <div class="stage__inner">
-      <div class="device" id="device">
-        <div class="island"></div>
-        <div class="app-host" id="app-host" aria-live="polite"></div>
+      <div class="workspace">
+        <aside class="dk-side" id="dk-side" aria-label="Sections"><!-- filled by live.js --></aside>
+        <div class="dk-content">
+          <div class="device" id="device">
+            <div class="island"></div>
+            <div class="app-host" id="app-host" aria-live="polite"></div>
+          </div>
+        </div>
       </div>
       <p class="hint">Real data, saved in this browser. Speak a sale with the <b>Dost</b> orb, or add one by hand — the dashboard, stock and dues all follow.</p>
     </div>

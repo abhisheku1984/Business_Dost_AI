@@ -785,7 +785,7 @@
     const recent = db.sales.slice(0, 3);
     const owner = db.shop.owner.split(/\s+/)[0];
 
-    return `<div class="screen">
+    return `<div class="screen screen--home">
       ${statusbar()}
       <div class="screen__scroll screen__scroll--tabbar">
         <div class="shead">
@@ -803,7 +803,8 @@
             </div>
           </div>
         </div>
-        <div class="sbody">
+        <div class="sbody sbody--home">
+          <div class="home-main">
           <section class="hero-card" aria-label="Today's sales">
             <div class="hero-card__head">
               <div>
@@ -823,16 +824,19 @@
             </div>
           </section>
 
-          <div class="lv-metrics">
-            <div class="lv-metric"><b>${money(due)}</b><span>Udhaar out</span></div>
-            <div class="lv-metric"><b>${low.length}</b><span>Low stock</span></div>
-            <div class="lv-metric"><b>${money(periodStats(1).net)}</b><span>Profit today</span></div>
-          </div>
-
           <div class="lv-month">
             <div class="lv-month__cell"><span>This month</span><b class="num">${money(month.revenue)}</b><small>sales</small></div>
             <div class="lv-month__cell"><span>Gross profit</span><b class="num">${money(month.gross)}</b><small>before expenses</small></div>
             <div class="lv-month__cell ${follow.length ? "is-warn" : ""}" data-nav="payments" role="button" tabindex="0"><span>Follow-ups</span><b class="num">${follow.length}</b><small>dues 7d+</small></div>
+          </div>
+
+          </div><!-- /home-main -->
+
+          <div class="home-side">
+          <div class="lv-metrics">
+            <div class="lv-metric"><b>${money(due)}</b><span>Udhaar out</span></div>
+            <div class="lv-metric"><b>${low.length}</b><span>Low stock</span></div>
+            <div class="lv-metric"><b>${money(periodStats(1).net)}</b><span>Profit today</span></div>
           </div>
 
           <div class="lv-quick">
@@ -854,8 +858,9 @@
           </button>
 
           ${draftBanner()}
+          </div><!-- /home-side -->
 
-          <section>
+          <section class="home-recent">
             <div class="section-label">
               <span class="section-label__title">Recent sales</span>
               <span class="section-label__action" data-nav="sales" role="button" tabindex="0">See all</span>
@@ -3498,6 +3503,7 @@
     HOST.innerHTML = html;
 
     paintStoragePill();
+    paintSidebar();
 
     /* conversations open at the latest message, not the oldest */
     const chatBox = $("#chat");
@@ -4667,6 +4673,83 @@
     }
   });
 
+  /* ------------------------------------------------------------------ */
+  /* desktop rail                                                       */
+  /* ------------------------------------------------------------------ */
+  const NAV_ITEMS = [
+    { group: "Shop" },
+    { route: "home", label: "Dashboard", icon: "home", key: "1" },
+    { route: "sales", label: "Sales", icon: "sales", key: "2" },
+    { route: "stock", label: "Products", icon: "box", key: "3" },
+    { route: "purchases", label: "Purchases", icon: "truck" },
+    { route: "suppliers", label: "Suppliers", icon: "store" },
+    { group: "People" },
+    { route: "customers", label: "Customers", icon: "users" },
+    { route: "payments", label: "Payments", icon: "wallet" },
+    { route: "expenses", label: "Expenses", icon: "rupee" },
+    { group: "Insight" },
+    { route: "reports", label: "Reports", icon: "chart" },
+    { route: "profit", label: "Profit", icon: "trending-up" },
+    { route: "inventory", label: "Stock movements", icon: "history" },
+    { route: "documents", label: "Documents", icon: "camera" },
+    { group: "Tools" },
+    { route: "ask", label: "Ask Dost", icon: "ai" },
+    { route: "reminders", label: "Reminders", icon: "bell", badge: true },
+    { route: "users", label: "People & roles", icon: "user-plus" },
+    { route: "audit", label: "Activity", icon: "clock" },
+    { route: "plan", label: "Plan", icon: "star" },
+    { route: "more", label: "Settings", icon: "settings" },
+  ];
+
+  /* which rail item lights up for a route */
+  const NAV_ALIAS = {
+    sale: "sales", "sale-new": "sales", quote: "sales", quotes: "sales",
+    restock: "stock", "item-new": "stock", "item-edit": "stock",
+    purchase: "purchases", "purchase-new": "purchases",
+    supplier: "suppliers", "supplier-new": "suppliers",
+    customer: "customers", "customer-new": "customers",
+    payment: "payments", expense: "expenses", settings: "more",
+  };
+
+  function paintSidebar() {
+    const rail = document.getElementById("dk-side");
+    if (!rail) return;
+    const base = String(ui.route || "home").split(":")[0];
+    const active = NAV_ALIAS[base] || base;
+    const badge = reminders().length;
+
+    rail.innerHTML = `
+      <div class="dk-brand">
+        <span class="dk-brand__mark">${icon("ai")}</span>
+        <span class="dk-brand__text">
+          <b>Business Dost</b>
+          <small>${esc(db.shop.name)}</small>
+        </span>
+      </div>
+      <button class="dk-new" data-act="new-sale">${icon("plus")} New sale</button>
+      ${NAV_ITEMS.map((item) => {
+        if (item.group) return `<div class="dk-group">${item.group}</div>`;
+        if (!allowed(item.route)) return "";
+        const count = item.badge && badge ? `<span class="dk-link__count">${badge}</span>` : "";
+        return `<button class="dk-link ${active === item.route ? "is-on" : ""}" data-nav="${item.route}">
+          ${icon(item.icon)}<span>${item.label}</span>${count}
+        </button>`;
+      }).join("")}
+      <div class="dk-side__foot">
+        <div class="dk-side__storage">
+          ${icon(storageMode() === "drive" && driveLinked() ? "cloud" : "monitor")}
+          <span>${esc(storageLabel())}</span>
+        </div>
+      </div>`;
+
+    const chip = document.getElementById("dk-user");
+    if (chip) {
+      const user = currentUser();
+      chip.innerHTML = `<span class="dk-user__dot">${esc(initials(user.name))}</span>${esc(user.name)} · ${user.role === "owner" ? "Owner" : "Staff"}`;
+      chip.hidden = false;
+    }
+  }
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && event.target && event.target.id === "ask-input") {
       event.preventDefault();
@@ -4676,7 +4759,18 @@
     if (event.key === "Escape") {
       if (ui.voice.live) stopListening();
       go(homeFor(ui.route));
+      return;
     }
+    /* desktop shortcuts — never while typing in a field */
+    const typing = event.target && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName);
+    if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (window.innerWidth < 900) return;
+    const k = event.key.toLowerCase();
+    if (k === "n") { event.preventDefault(); go("sale-new"); }
+    else if (k === "c") { event.preventDefault(); go("customer-new"); }
+    else if (k === "a") { event.preventDefault(); go("ask"); }
+    else if (k === "d") { event.preventDefault(); go("home"); }
+    else if (k === "r") { event.preventDefault(); go("reports"); }
   });
 
   /* theme */

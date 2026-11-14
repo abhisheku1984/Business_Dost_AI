@@ -1,0 +1,30 @@
+# Render blueprint — static site, no server, no database.
+# The app is plain HTML/CSS/JS; Render only serves the files over HTTPS.
+services:
+  - type: web
+    name: business-dost
+    runtime: static
+    staticPublishPath: ./design
+    routes:
+      # open the app at the domain root (the review site stays at /index.html)
+      - type: rewrite
+        source: /
+        destination: /live.html
+      - type: rewrite
+        source: /app
+        destination: /live.html
+    headers:
+      # the service worker must never be cached, or an update never lands
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /live.html
+        name: Cache-Control
+        value: no-cache
+      # icons, fonts and css can be cached for a while
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=604800
+      - path: /icons/*
+        name: Cache-Control
+        value: public, max-age=604800
