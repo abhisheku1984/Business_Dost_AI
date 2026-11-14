@@ -4,6 +4,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${PORT:-4173}"
 
+if [ ! -f design/index.html ]; then
+  echo "This folder is not the review folder."
+  echo "Folder: $(pwd)"
+  echo "Open the folder that has design/ and run.sh side by side, then run this again."
+  exit 1
+fi
+
 open_url() {
   if command -v open >/dev/null 2>&1; then open "$1"
   elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1 || true
@@ -23,6 +30,7 @@ else
 fi
 
 echo "Business Dost AI — design review"
+echo "Folder: $(pwd)"
 echo "Serving design/ at http://localhost:$PORT  (press Ctrl+C to stop)"
 ( sleep 1; open_url "http://localhost:$PORT/" ) &
 exec "${SERVE[@]}"

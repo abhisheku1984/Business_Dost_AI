@@ -50,6 +50,28 @@ git clone -b arena/6f2ae4dd-business-dost-ai https://github.com/abhisheku1984/Bu
 cd Business_Dost_AI
 ```
 
+**Keep one folder only.** `git clone` creates a folder named after the repository, so cloning *inside*
+a folder that is already the repository gives you `Business_Dost_AI\Business_Dost_AI\…`. Clone once,
+into a fresh parent — or into the current empty folder with a trailing dot:
+
+```powershell
+# Windows PowerShell — one clean folder at E:\BusinessDost
+cd E:\
+New-Item -ItemType Directory -Force E:\BusinessDost | Out-Null
+cd E:\BusinessDost
+git clone -b arena/6f2ae4dd-business-dost-ai https://github.com/abhisheku1984/Business_Dost_AI.git .
+```
+
+```bash
+# macOS / Linux — same idea
+mkdir -p ~/BusinessDost && cd ~/BusinessDost
+git clone -b arena/6f2ae4dd-business-dost-ai https://github.com/abhisheku1984/Business_Dost_AI.git .
+```
+
+The right folder has exactly one of each: `design/`, `demo/`, `docs/`, `run.bat`, `run.command`,
+`run.sh`, `README.md`, `RUN.md`. If `design` sits inside another `Business_Dost_AI` folder, you are one
+level too deep — go up until `design` and `run.bat` are side by side.
+
 **Or clone first, then switch:**
 
 ```bash
