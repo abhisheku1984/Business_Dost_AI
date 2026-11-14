@@ -53,7 +53,7 @@ What it does, end to end:
 | **Stock** | Every sale decrements it, restock adds a delivery, low-stock alerts on the dashboard |
 | **Profit** | Real cost of goods: sales − cost − expenses, margin, and which product actually earned the money |
 | **Reports** | Sales day by day, top products, best customers, where money went, stock value, oldest due |
-| **Ask Dost** | “Who owes me money?”, “What's running low?”, “Rate of cement?” — answered from your own books, on the device, no AI key needed |
+| **Ask Dost** | Answers from your own books (“who owes me”, “profit this week”, “how many invoices today”, “what did I buy this month”), opens any screen (“open purchases”), finds and edits records (“invoice 2419”, “edit customer Ramesh”), takes you to the delete button (“delete last sale”), and adds with details (“add expense 300 diesel”, “sold 2 cement and 1 paint to Ramesh”) — all on the device, no AI key |
 | **Invoices** | Multi-item bills: build a basket, then save one invoice. Shop name, GSTIN, number, CGST/SGST when GST is on — send on WhatsApp, print/PDF, or copy the text |
 | **Quotations** | Quote a price without touching stock; mark sent/accepted; convert to an unpaid invoice in one tap |
 | **Payments** | Outstanding by customer, record a receipt (cash/UPI/bank/cheque), see recent receipts and what is still owed |
@@ -169,16 +169,17 @@ Everything below runs today in `design/live.html` — no mockups.
 | **Invoices register** — every bill, search by number/customer/item, Paid / Udhaar / Today, print & collect | Working |
 | Products **and services** (HSN/SAC, no stock for services) | Working |
 | Customers — add, edit (name, phone, address), receipts, udhaar, part payments, reminders | Working |
-| Suppliers — what each one supplies, phone, GSTIN, address, notes, edit | Working |
+| Suppliers — what each one supplies, phone, GSTIN, address, notes, edit, delete (blocked while bills exist) | Working |
 | **Purchase bills** — many items in one bill, their bill number and date, paid / part paid / credit, notes, correct or delete | Working |
 | Stock movements, low-stock alerts, profit & COGS | Working |
 | **Expenses** — list, totals, edit the amount/category/date, delete | Working |
+| **Delete in every section** — invoice (stock returns), purchase (stock returns), quotation, customer, supplier, product/service, expense, receipt, document, staff — each asks first and never deletes silently | Working |
 | Reports, 14-day charts, profit & COGS | Working |
 | Documents — bill photos, compressed and stored with the data | Working |
 | Reminders + device notifications (while the app is open) | Working |
 | People & roles — owner vs staff, with an activity log | Working |
 | Plan screen (Free now; Play Billing not connected) | Visible, not billable |
-| Ask Dost — ~20 intents, English **and** Hindi answers, read aloud | Working (rule-based, no LLM yet) |
+| Ask Dost — ~30 intents plus open / find / edit / delete / add commands, English **and** Hindi answers, read aloud | Working (rule-based, no LLM yet) |
 | Storage | One JSON document — this device, **your own Supabase project**, or your Google Drive |
 | Android package (AAB), push, multi-device staff | Not built |
 

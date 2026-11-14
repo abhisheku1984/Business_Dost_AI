@@ -368,7 +368,12 @@
   }
 
   function stampForDate(dateStr) {
-    const stamp = /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || "")) ? new Date(`${dateStr}T12:00:00`).getTime() : NaN;
+    const key = String(dateStr || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+    /* a bill raised today keeps the real clock so it lands on top of the register;
+       a back-dated bill sits at midday so it never floats above newer bills */
+    if (key === dayKey()) return Date.now();
+    const stamp = new Date(`${key}T12:00:00`).getTime();
     return Number.isNaN(stamp) ? null : stamp;
   }
 
@@ -604,6 +609,7 @@
     purchaseEditId: "",
     invoices: { tab: "all", q: "" },
     invEditId: "",
+    expenseDraft: null,
     cart: [],
     reports: { days: 7 },
     ask: { typing: false },
@@ -741,8 +747,32 @@
     expense: "expense", purchase: "purchase", quote: "quotation",
   };
 
+  function splitNameNumbers(kind, name, raw) {
+    let clean = String(name || "");
+    const text = String(raw || "");
+    const phone = (text.match(/(?:\+91[\s-]?)?(\d{10}|\d{5}[\s-]\d{5})/) || [])[1] || "";
+    if (phone) clean = clean.replace(/[\d\s+-]{9,}/g, " ").trim();
+    let amount = 0;
+    const rateHit = text.match(/\b(?:rate|price|mrp)\s*([\d,]{1,7})\b/i);
+    if (rateHit) amount = num(rateHit[1]);
+    if (kind === "expense") {
+      const m = text.match(/\b(\d{2,6})\b/);
+      if (m) amount = num(m[1]);
+      clean = clean.replace(/[\d,]+/g, " ").replace(/\b(rs|rupees?|rupaye)\b/gi, " ").replace(/\s+/g, " ").trim();
+    }
+    if (kind === "item" && amount) {
+      clean = clean.replace(/[\d,]+/g, " ").replace(/\b(rate|price|mrp)\b/gi, " ").replace(/\s+/g, " ").trim();
+    }
+    if (kind === "customer" || kind === "supplier") {
+      clean = clean.replace(/\b(phone|number|no|mobile)\b/gi, " ").replace(/\s+/g, " ").trim();
+    }
+    return { clean: titleCase(clean), amount, phone };
+  }
+
   function openCreate(intent) {
     const name = intent.name || "";
+    const extra = splitNameNumbers(intent.kind, name, intent.raw);
+    const clean = extra.clean || name;
     const service = /\b(service|services)\b/i.test(intent.raw || "");
     ui.itemDraft = null;
     ui.customerDraft = null;
@@ -750,15 +780,16 @@
     ui.itemReturn = null;
 
     if (intent.kind === "item") {
-      ui.itemDraft = { id: "", kind: service ? "service" : "product", name, unit: service ? "hour" : "piece" };
+      ui.itemDraft = { id: "", kind: service ? "service" : "product", name: clean, unit: service ? "hour" : "piece", rate: extra.amount || "" };
       go("item-new");
     } else if (intent.kind === "customer") {
-      ui.customerDraft = { name, phone: "" };
+      ui.customerDraft = { name: clean, phone: extra.phone || "" };
       go("customer-new");
     } else if (intent.kind === "supplier") {
-      ui.supplierDraft = { name, phone: "", gstin: "" };
+      ui.supplierDraft = { name: clean, phone: extra.phone || "", gstin: "" };
       go("supplier-new");
     } else if (intent.kind === "expense") {
+      ui.expenseDraft = { amount: extra.amount || "", category: clean || "Other", note: "" };
       go("expense");
     } else if (intent.kind === "purchase") {
       go("purchase-new");
@@ -767,7 +798,7 @@
       ui.sale.mode = "quote";
       go("sale-new");
     }
-    toast(`Opening a new ${CREATE_LABEL[intent.kind]}${name ? ` · ${name}` : ""} — nothing is saved until you save it`);
+    toast(`Opening a new ${CREATE_LABEL[intent.kind]}${clean ? ` · ${clean}` : ""} — nothing is saved until you save it`);
   }
 
   function makeDraft(text) {
@@ -1281,6 +1312,10 @@
               <button class="btn btn--primary" data-act="collect" data-id="${id}">${icon("check")} Mark received</button>
             </div>
           </div>
+          <div class="lv-actions" style="margin-top:14px">
+            <button class="btn btn--danger" data-act="delete-customer" data-id="${c.id}">${icon("trash")} Delete this customer</button>
+          </div>
+          ${sales.length ? `<p class="lv-hintline">This customer has ${sales.length} invoice${sales.length === 1 ? "" : "s"}, so they can't be deleted — that would orphan the udhaar.</p>` : ""}
         </div>
       </div>
       ${indicator()}
@@ -1969,7 +2004,8 @@
   function viewExpense(id) {
     const editing = id ? db.expenses.find((e) => e.id === id) : null;
     if (id && !editing) return viewExpenses();
-    const e = editing || {};
+    const draft = editing ? null : (ui.expenseDraft || null);
+    const e = editing || draft || {};
     return `<div class="screen">
       ${statusbar()}
       <div class="screen__scroll">
@@ -1980,7 +2016,7 @@
         <div class="lv-form">
           <div class="lv-field">
             <span class="lv-label">Amount</span>
-            <input class="lv-input lv-input--num" id="exp-amount" type="number" inputmode="decimal" placeholder="0" value="${editing ? esc(String(e.amount)) : ""}" ${editing ? "" : "autofocus"} />
+            <input class="lv-input lv-input--num" id="exp-amount" type="number" inputmode="decimal" placeholder="0" value="${e.amount == null || e.amount === "" ? "" : esc(String(e.amount))}" ${editing ? "" : "autofocus"} />
           </div>
           <div class="lv-field">
             <span class="lv-label">Category</span>
@@ -2324,6 +2360,271 @@
     return score ? best : null;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Dost's command layer                                               */
+  /* open · find · edit · delete · many items in one sale               */
+  /* Every write still waits for a human tap.                           */
+  /* ------------------------------------------------------------------ */
+  const DOST_SCREENS = [
+    { re: /\b(invoices?|invoice register|all bills)\b/, route: "invoices", label: "Invoices" },
+    { re: /\b(today'?s sales|sales list|sales)\b/, route: "sales", label: "Today's sales" },
+    { re: /\b(customers?|grahak|party)\b/, route: "customers", label: "Customers" },
+    { re: /\b(products?|catalogue|stock|items?)\b/, route: "stock", label: "Products" },
+    { re: /\b(purchases?|kharid)\b/, route: "purchases", label: "Purchase bills" },
+    { re: /\b(suppliers?|vendors?|dukandar)\b/, route: "suppliers", label: "Suppliers" },
+    { re: /\b(payments?|receipts?)\b/, route: "payments", label: "Payments" },
+    { re: /\b(expenses?|kharcha)\b/, route: "expenses", label: "Expenses" },
+    { re: /\b(reports?|hisab|report)\b/, route: "reports", label: "Reports" },
+    { re: /\b(profit|munafa|kamai)\b/, route: "profit", label: "Profit" },
+    { re: /\b(movements?|inventory|stock history)\b/, route: "inventory", label: "Stock movements" },
+    { re: /\b(documents?|photos?|bills? photos?)\b/, route: "documents", label: "Documents" },
+    { re: /\b(quotations?|quotes?|estimates?)\b/, route: "quotes", label: "Quotations" },
+    { re: /\b(reminders?|yaad)\b/, route: "reminders", label: "Reminders" },
+    { re: /\b(people|users?|staff|team)\b/, route: "users", label: "People & roles" },
+    { re: /\b(activity|audit|log)\b/, route: "audit", label: "Activity" },
+    { re: /\b(settings?|data|backup)\b/, route: "more", label: "Settings" },
+    { re: /\b(home|dashboard)\b/, route: "home", label: "Dashboard" },
+  ];
+
+  const DOST_CHIPS = [
+    { label: "Open invoices", nav: "invoices" },
+    { label: "Who owes me?", say: "Who owes me money?" },
+  ];
+
+  const dostNo = (q) => (String(q).match(/#?\s*(\d{2,6})/) || [])[1] || "";
+
+  function nameScore(list, q) {
+    const words = String(q).toLowerCase().split(/[^a-z0-9\u0900-\u097F]+/).filter((w) => w.length >= 3);
+    let best = null;
+    let bestScore = 0;
+    list.forEach((x) => {
+      const name = String(x.name || "").toLowerCase();
+      if (!name) return;
+      let score = 0;
+      if (q.toLowerCase().includes(name)) score += 3;
+      words.forEach((w) => {
+        if (name.includes(w)) score += 2;
+        else if (name.split(/\s+/).some((part) => part.length > 2 && part.startsWith(w.slice(0, 3)))) score += 1;
+      });
+      if (score > bestScore) { bestScore = score; best = x; }
+    });
+    return bestScore >= 2 ? best : null;
+  }
+
+  /* "sold 2 cement and 1 paint to Ramesh" — one invoice, several lines */
+  function multiItemSale(raw) {
+    const q = String(raw || "").toLowerCase();
+    if (!/\b(sold|sell|selling|becha|bech|bechi|bikri|bika|diya|दिया|बेचा)\b/.test(q)) return null;
+    const chunks = q.split(/\b(?:and|aur|plus|,|&)\b/).map((x) => x.trim()).filter(Boolean);
+    const found = [];
+    chunks.forEach((chunk) => {
+      const item = findItemIn(chunk);
+      if (!item || found.some((f) => f.itemId === item.id)) return;
+      const digits = chunk.match(/\b(\d{1,4})\b/);
+      const words = chunk.match(new RegExp(`\\b(${Object.keys(NUM_WORDS).join("|")})\\b`));
+      let qty = digits ? num(digits[1]) : words ? NUM_WORDS[words[1]] : 1;
+      if (!qty || qty <= 0) qty = 1;
+      found.push({ itemId: item.id, name: item.name, unit: item.unit, qty, rate: item.rate });
+    });
+    if (found.length < 2) return null;
+    const parsed = parse(raw);
+    ui.cart = found;
+    ui.sale = Object.assign(blankSale(), {
+      customerId: parsed.customerId || (db.customers[0] ? db.customers[0].id : ""),
+      method: parsed.method || "UPI",
+      mode: "sale",
+      date: dayKey(),
+    });
+    if (!parsed.customerId && parsed.customerName) {
+      ui.sale.customerId = "__new";
+      ui.sale.newCustomer = parsed.customerName;
+    }
+    ui.sale.qty = 1;
+    ui.invEditId = "";
+    return {
+      route: "sale-new",
+      text: `That's ${found.length} items, so I've put them on one invoice: ${found.map((f) => `${f.qty} ${f.unit} ${f.name}`).join(", ")}. Check the customer and the rates, then press Save — nothing is written until you do.`,
+      chips: [{ label: "Back to chat", nav: "ask" }],
+    };
+  }
+
+  /* a sentence that asks Dost to do something to an existing record */
+  function dostAction(raw) {
+    const q = String(raw || "").toLowerCase().trim();
+    const t = ` ${q.replace(/[.,!?]/g, " ")} `;
+    const no = dostNo(q);
+    const delVerb = /\b(delete|remove|hatao|hata|mitao|mita|khatam karo|डिलीट|हटाओ|मिटाओ)\b/.test(t);
+    const editVerb = /\b(edit|change|update|badlo|badal|sudharo|एडिट|सुधारो|बदलो)\b/.test(t);
+    const navVerb = /\b(open|show|go to|goto|kholo|khol|dikhao|dikha|jao|screen|page|nikalo|खोलो|दिखाओ)\b/.test(t);
+    const findVerb = /\b(find|search|dhoondo|dhoondh|kahan|kaha|detail|details)\b/.test(t);
+    const invoiceWords = /\b(invoices?|inv|bill|bills)\b/.test(t);
+    const purchaseWords = /\b(purchases?|kharid|supplier bills?)\b/.test(t);
+
+    const asksQuestion = /\b(how|what|which|who|when|kitna|kitni|kitne|kaun|kisko|kab|total|hisab|batao|bata)\b/.test(t) || /\?$/.test(q.trim());
+    if (asksQuestion && !delVerb && !editVerb) return null;
+
+    const saleByNo = (n) => db.sales.find((x) => String(x.no) === String(n));
+    const purchaseByNo = (n) => db.purchases.find((x) => String(x.no) === String(n));
+    const quoteByNo = (n) => db.quotes.find((x) => String(x.no) === String(n));
+    const lastSale = () => db.sales.slice().sort((a, b) => b.at - a.at)[0];
+    const back = [{ label: "Back to chat", nav: "ask" }];
+
+    const openSale = (sale, verb) => ({
+      route: `sale:${sale.id}`,
+      text: `${verb === "edit" ? "Editing" : "Opened"} invoice #${sale.no} — ${sale.customerName} · ${money(sale.amount)}${verb === "edit" ? ". Change the lines and press Save changes; stock corrects itself." : ". The red Delete button is at the bottom; I never delete a bill on my own."}`,
+      chips: back,
+    });
+
+    /* ---------- delete ---------- */
+    if (delVerb) {
+      if (purchaseWords && !/\binvoices?\b/.test(t)) {
+        const p = no ? purchaseByNo(no) : db.purchases.slice().sort((a, b) => b.at - a.at)[0];
+        if (!p) return { text: "I can't find that purchase bill. Open Purchases and tap the one you mean.", route: "purchases", chips: back };
+        return {
+          route: `purchase:${p.id}`,
+          text: `Opened purchase bill #${p.no} from ${p.supplierName}. Press Delete at the bottom — the stock it added comes back off the shelf.`,
+          chips: back,
+        };
+      }
+      if (invoiceWords || /\b(sales?|bikri)\b/.test(t) || /\blast\b/.test(t)) {
+        const sale = no ? saleByNo(no) : lastSale();
+        if (!sale) return { text: "There's no invoice to delete yet.", route: "invoices", chips: back };
+        return openSale(sale, "delete");
+      }
+      if (/\b(customers?|grahak)\b/.test(t)) {
+        const c = nameScore(db.customers, q);
+        if (!c) return { text: "Which customer? Say “delete customer Suresh”.", route: "customers", chips: back };
+        const bills = db.sales.filter((x) => x.customerId === c.id).length;
+        if (bills) return { text: `${c.name} has ${bills} invoice${bills === 1 ? "" : "s"}, so deleting would orphan that udhaar. Delete the invoices first, or keep the customer.`, route: `customer:${c.id}`, chips: back };
+        return { route: `customer-edit:${c.id}`, text: `Opened ${c.name} in edit mode — press Delete at the bottom to remove them.`, chips: back };
+      }
+      if (/\b(suppliers?|vendors?|dukandar)\b/.test(t)) {
+        const sup = nameScore(db.suppliers, q);
+        if (!sup) return { text: "Which supplier? Say “delete supplier Gupta”.", route: "suppliers", chips: back };
+        const bills = db.purchases.filter((x) => x.supplierId === sup.id).length;
+        if (bills) return { route: `supplier:${sup.id}`, text: `${sup.name} has ${bills} purchase ${bills === 1 ? "bill" : "bills"}, so deleting would break the payable. Delete those bills first, or keep the supplier.`, chips: back };
+        return { route: `supplier:${sup.id}`, text: `Opened ${sup.name} — the red Delete button is at the bottom.`, chips: back };
+      }
+      if (/\b(products?|items?|services?|maal)\b/.test(t)) {
+        const item = findItemIn(q);
+        if (!item) return { text: "Which product? Say “delete product putty”.", route: "stock", chips: back };
+        const used = db.sales.some((x) => x.lines.some((l) => l.itemId === item.id));
+        return { route: `item-edit:${item.id}`, text: `${item.name} is open. ${used ? "It sits on past invoices, so it can't be deleted — change the price or stop selling it instead." : "Press Delete at the bottom to remove it."}`, chips: back };
+      }
+      if (/\b(expenses?|kharcha)\b/.test(t)) {
+        const n = Number(no);
+        const e = (n && db.expenses.find((x) => Number(x.amount) === n)) || nameScore(db.expenses, q) || (!n ? db.expenses.slice().sort((a, b) => b.at - a.at)[0] : null);
+        if (!e) return { text: n ? `No expense of ${money(n)} in the books. Open Expenses and pick the row you mean.` : "There's no expense like that.", route: "expenses", chips: back };
+        return { route: `expense-edit:${e.id}`, text: `Opened the ${e.category} expense of ${money(e.amount)} — press Delete at the bottom.`, chips: back };
+      }
+      if (/\b(quotations?|quotes?)\b/.test(t)) {
+        const quote = no ? quoteByNo(no) : db.quotes[0];
+        if (!quote) return { text: "No quotation matches that.", route: "quotes", chips: back };
+        return { route: `quote:${quote.id}`, text: `Opened quotation Q-${quote.no} — Delete is at the bottom.`, chips: back };
+      }
+      if (/\b(payments?|receipts?)\b/.test(t)) {
+        const pay = db.payments.slice().sort((a, b) => b.at - a.at)[0];
+        if (!pay) return { text: "No payments recorded yet.", route: "payments", chips: back };
+        const c = db.customers.find((x) => x.id === pay.customerId);
+        return { route: c ? `customer:${c.id}` : "payments", text: "Open the customer — the receipt is under “Payments received” with a Remove button.", chips: back };
+      }
+      return { text: "Tell me what to delete: “delete invoice 2419”, “delete purchase 501”, “delete customer Suresh”, “delete product putty”, “delete expense 450”.", chips: [{ label: "Open invoices", nav: "invoices" }, { label: "Open customers", nav: "customers" }] };
+    }
+
+    /* ---------- edit ---------- */
+    if (editVerb) {
+      if (purchaseWords && !invoiceWords) {
+        const p = no ? purchaseByNo(no) : db.purchases.slice().sort((a, b) => b.at - a.at)[0];
+        if (!p) return { text: "I can't find that purchase bill.", route: "purchases", chips: back };
+        return { route: `purchase:${p.id}`, text: `Opened purchase bill #${p.no}. Press “Edit this bill” to correct the lines or the payment.`, chips: back };
+      }
+      if (invoiceWords || /\b(sales?|bikri)\b/.test(t) || /\blast\b/.test(t)) {
+        const sale = no ? saleByNo(no) : lastSale();
+        if (!sale) return { text: "There's no invoice to edit yet.", route: "invoices", chips: back };
+        return { route: `invoice-edit:${sale.id}`, text: `Editing invoice #${sale.no}. Change quantities, rates or items, then press Save changes — stock moves by the difference only.`, chips: back };
+      }
+      if (/\b(customers?|grahak)\b/.test(t)) {
+        const c = nameScore(db.customers, q);
+        if (!c) return { text: "Which customer? Say “edit customer Ramesh”.", route: "customers", chips: back };
+        return { route: `customer-edit:${c.id}`, text: `${c.name} is open — change the name, phone or address and save.`, chips: back };
+      }
+      if (/\b(suppliers?|vendors?|dukandar)\b/.test(t)) {
+        const sup = nameScore(db.suppliers, q);
+        if (!sup) return { text: "Which supplier? Say “edit supplier Gupta”.", route: "suppliers", chips: back };
+        return { route: `supplier-edit:${sup.id}`, text: `${sup.name} is open — supplies, phone, GSTIN, address and notes.`, chips: back };
+      }
+      if (/\b(products?|items?|services?|rate|price|maal)\b/.test(t)) {
+        const item = findItemIn(q);
+        if (!item) return { text: "Which product? Say “edit product cement”.", route: "stock", chips: back };
+        return { route: `item-edit:${item.id}`, text: `${item.name} is open — rate, cost, unit, HSN and stock.`, chips: back };
+      }
+      if (/\b(expenses?|kharcha)\b/.test(t)) {
+        const e = (no && db.expenses.find((x) => Number(x.amount) === Number(no))) || db.expenses.slice().sort((a, b) => b.at - a.at)[0];
+        if (!e) return { text: "No expense to edit yet.", route: "expenses", chips: back };
+        return { route: `expense-edit:${e.id}`, text: `Opened the ${e.category} expense of ${money(e.amount)}.`, chips: back };
+      }
+      return { text: "Tell me what to edit: “edit invoice 2419”, “edit customer Ramesh”, “edit product cement”, “edit expense 450”.", chips: back };
+    }
+
+    /* ---------- a new invoice by voice ---------- */
+    if (/\b(new|naya|nayi|create|add)\b/.test(t) && /\b(invoices?|bill)\b/.test(t) && !/\b(products?|items?|customers?|suppliers?|expenses?|purchases?|quotations?)\b/.test(t)) {
+      ui.cart = [];
+      ui.sale = blankSale();
+      ui.invEditId = "";
+      return { route: "sale-new", text: "Opened a blank invoice. Add the items, pick the customer, then press Save.", chips: back };
+    }
+
+    /* ---------- open / show a screen ---------- */
+    if (navVerb) {
+      if (no && invoiceWords) {
+        const hitSale = saleByNo(no);
+        if (hitSale) return openSale(hitSale, "show");
+      }
+      if (no && purchaseWords) {
+        const hitPurchase = purchaseByNo(no);
+        if (hitPurchase) return { route: `purchase:${hitPurchase.id}`, text: `Purchase bill #${hitPurchase.no} from ${hitPurchase.supplierName} · ${money(hitPurchase.amount)}.`, chips: back };
+      }
+      if (invoiceWords) {
+        if (/\b(unpaid|udhaar|due|pending|baki|baaki)\b/.test(t)) {
+          invoiceState().tab = "due";
+          return { route: "invoices", text: "Showing the invoices that are still on udhaar.", chips: back };
+        }
+        if (/\bpaid\b/.test(t)) {
+          invoiceState().tab = "paid";
+          return { route: "invoices", text: "Showing the paid invoices.", chips: back };
+        }
+        invoiceState().tab = "all";
+        return { route: "invoices", text: "Opened the invoice register — every bill, searchable.", chips: back };
+      }
+      const screen = DOST_SCREENS.find((x) => x.re.test(t));
+      if (screen) return { route: screen.route, text: `Opened ${screen.label}.`, chips: back };
+    }
+
+    /* ---------- find a record ---------- */
+    if (findVerb || no) {
+      const invoiceHit = no && invoiceWords ? saleByNo(no) : null;
+      if (invoiceHit) return openSale(invoiceHit, "show");
+      const purchaseHit = no && purchaseWords ? purchaseByNo(no) : null;
+      if (purchaseHit) return { route: `purchase:${purchaseHit.id}`, text: `Purchase bill #${purchaseHit.no} from ${purchaseHit.supplierName} · ${money(purchaseHit.amount)}.`, chips: back };
+      const quoteHit = no && /\b(quotations?|quotes?)\b/.test(t) ? quoteByNo(no) : null;
+      if (quoteHit) return { route: `quote:${quoteHit.id}`, text: `Quotation Q-${quoteHit.no} · ${money(quoteHit.amount)}.`, chips: back };
+      if (/\b(customers?|grahak)\b/.test(t)) {
+        const c = nameScore(db.customers, q);
+        if (c) return { route: `customer:${c.id}`, text: `${c.name} — ${money(customerDue(c.id))} outstanding, ${db.sales.filter((x) => x.customerId === c.id).length} invoices.`, chips: back };
+      }
+      if (/\b(suppliers?|vendors?)\b/.test(t)) {
+        const sup = nameScore(db.suppliers, q);
+        if (sup) return { route: `supplier:${sup.id}`, text: `${sup.name} — ${money(supplierOwed(sup.id))} payable.`, chips: back };
+      }
+      if (findVerb) {
+        const item = findItemIn(q);
+        if (item) return { route: `restock:${item.id}`, text: `${item.name} — ${money(item.rate)} per ${item.unit}, ${item.stock} in stock.`, chips: back };
+      }
+    }
+
+    return null;
+  }
+
   function answerFor(raw) {
     const q = String(raw || "").toLowerCase();
     const has = (...words) => words.some((w) => q.includes(w));
@@ -2410,13 +2711,14 @@
     /* help */
     if (has("what can you do", "help", "kya kar sakta", "how do you work", "commands")) {
       return {
-        text: "I read your own numbers — nothing leaves this phone. Ask me about sales, profit, udhaar, stock, expenses, rates or your best customer. I can also answer in Hinglish: “aaj ki bikri kitni hai?”",
-        chips: [chipSay("Sales today", "How much did I sell today?"), chipSay("Low stock", "What is running low?"), chipSay("Profit this week", "How much profit this week?")],
+        text: "I work on your own books — nothing leaves this phone. Ask me anything, or tell me where to go.\n\n\n• Answers — “how much did I sell today”, “profit this week”, “who owes me money”, “what is running low”, “how many invoices today”, “purchase bills this month”, “my best customer”, “how much did I spend”.\n\n• Open a screen — “open invoices”, “open purchases”, “open quotations”, “open payments”, “open expenses”, “open reports”, “open activity”.\n\n• Find a record — “invoice 2419”, “customer Ramesh”, “product cement”, “purchase 501”.\n\n• Edit — “edit invoice 2419”, “edit customer Ramesh”, “edit product cement”.\n\n• Delete — “delete last sale”, “delete purchase 501”, “delete customer Suresh”. I only take you to the record; you press the red button yourself.\n\n• Add — “add expense 300 diesel”, “add customer Suresh 9820011223”, “add product Birla White rate 520”.\n\n• Many items on one bill — “sold 2 cement and 1 PVC pipe to Ramesh”.\n\n• Hinglish works the same: “aaj ki bikri kitni hai?”",
+        chips: [chipSay("Sales today", "How much did I sell today?"), chipSay("Who owes me?", "Who owes me money?"), chipSay("Low stock", "What is running low?"), chipNav("Open invoices", "invoices"), chipNav("Open purchases", "purchases")],
       };
     }
 
     /* dues */
-    if (has("owe", "owes", "udhaar", "udhar", "baki", "bakaya", "outstanding", "pending")) {
+    const theyOweMe = !has("supplier", "vendor", "dukandar", "payable", "purchase bill", "dena hai");
+    if (theyOweMe && has("owe", "owes", "udhaar", "udhar", "baki", "bakaya", "outstanding", "pending")) {
       const debtors = db.customers
         .map((c) => ({ ...c, due: customerDue(c.id) }))
         .filter((c) => c.due > 0)
@@ -2510,6 +2812,38 @@
       };
     }
 
+    /* invoices: how many, and the last one */
+    if (has("how many invoice", "how many bill", "number of invoice", "kitne bill", "kitni invoice", "invoice count", "bill count")) {
+      const from = daysAgo(Math.max(0, days - 1 + offset));
+      const inPeriod = db.sales.filter((x) => x.date >= from && x.date <= daysAgo(offset));
+      const unpaid = inPeriod.filter((x) => !x.paid);
+      return {
+        text: `${inPeriod.length} ${inPeriod.length === 1 ? "invoice" : "invoices"} ${when}, worth ${money(inPeriod.reduce((t, x) => t + Number(x.amount || 0), 0))}. ${unpaid.length ? `${unpaid.length} still on udhaar (${money(unpaid.reduce((t, x) => t + Number(x.amount || 0), 0))}).` : "All of them are paid."}`,
+        chips: [chipNav("Open invoices", "invoices"), chipSay("Who owes me?", "Who owes me money?")],
+      };
+    }
+    if (has("last invoice", "latest invoice", "last bill", "recent invoice", "aakhri bill")) {
+      const sale = db.sales.slice().sort((a, b) => b.at - a.at)[0];
+      if (!sale) return { text: "No invoices yet — raise the first one and I'll remember it.", chips: [chipNav("New invoice", "sale-new")] };
+      return {
+        text: `The last invoice is #INV-${sale.no} to ${sale.customerName} for ${money(sale.amount)} (${sale.lines.length} ${sale.lines.length === 1 ? "item" : "items"}, ${sale.paid ? "paid" : "on udhaar"}).`,
+        chips: [chipNav("Open it", `sale:${sale.id}`), chipNav("All invoices", "invoices")],
+      };
+    }
+
+    /* purchases: what went out to suppliers */
+    if (has("purchase", "kharid", "kharida", "bought", "buy", "supplier bill", "stock in", "stock aaya")) {
+      const from = daysAgo(Math.max(0, days - 1 + offset));
+      const bills = db.purchases.filter((x) => x.date >= from && x.date <= daysAgo(offset));
+      const total = bills.reduce((t, x) => t + Number(x.amount || 0), 0);
+      return {
+        text: bills.length
+          ? `${bills.length} purchase ${bills.length === 1 ? "bill" : "bills"} ${when}, ${money(total)} of stock in. ${money(totalPayable())} is still payable to suppliers.`
+          : `No purchase bills ${when}. ${money(totalPayable())} is payable from earlier bills.`,
+        chips: [chipNav("Purchases", "purchases"), chipNav("Suppliers", "suppliers")],
+      };
+    }
+
     /* a specific product */
     const item = findItemIn(q);
     if (item) {
@@ -2531,8 +2865,8 @@
 
     /* fallback */
     return {
-      text: `I can answer from your own books: ${money(statsFor(dayKey()).total)} sold today, ${money(totalDue())} udhaar out, ${lowStock().length} ${lowStock().length === 1 ? "product" : "products"} low, ${money(periodStats(7).net)} profit this week. Try asking “who owes me money” or “what's running low?”`,
-      chips: [chipSay("Who owes me?", "Who owes me money?"), chipSay("Profit today", "How much profit did I make today?"), chipSay("Low stock", "What is running low?")],
+      text: `I didn't catch that one. I can open any screen (“open invoices”), find a record (“invoice 2419”), edit (“edit customer Ramesh”), delete (“delete last sale” — I only take you to it), add (“add expense 300 diesel”, “add product Birla White rate 520”), put a multi-item sale on one bill (“sold 2 cement and 1 paint to Ramesh”), or answer from your books (“who owes me”, “profit this week”, “how many invoices today”).\n\nRight now: ${money(statsFor(dayKey()).total)} sold today, ${money(totalDue())} udhaar out, ${lowStock().length} ${lowStock().length === 1 ? "product" : "products"} low.`,
+      chips: [chipNav("Open invoices", "invoices"), chipSay("Who owes me?", "Who owes me money?"), chipSay("Profit today", "How much profit did I make today?"), chipSay("Low stock", "What is running low?")],
     };
   }
 
@@ -2541,11 +2875,34 @@
     if (!q) return;
     if (!Array.isArray(db.chat)) db.chat = [];
     db.chat.push({ role: "me", text: q, at: Date.now() });
+    const multi = multiItemSale(q);
+    if (multi) {
+      db.chat.push({ role: "dost", text: multi.text, chips: multi.chips, at: Date.now() + 1 });
+      if (db.chat.length > 80) db.chat = db.chat.slice(-80);
+      persist();
+      go(multi.route);
+      toast("One invoice, several items — check and save");
+      return;
+    }
+    const action = dostAction(q);
+    if (action) {
+      db.chat.push({ role: "dost", text: action.text, chips: action.chips || [], at: Date.now() + 1 });
+      if (db.chat.length > 80) db.chat = db.chat.slice(-80);
+      persist();
+      go(action.route || "ask");
+      if (action.route && action.route !== "ask") toast("Opened — nothing is saved until you tap save");
+      requestAnimationFrame(() => {
+        const chat = $("#chat");
+        if (chat) chat.scrollTop = chat.scrollHeight;
+      });
+      return;
+    }
     const intent = createIntent(q);
     if (intent) {
+      const cleanName = splitNameNumbers(intent.kind, intent.name || "", intent.raw).clean;
       db.chat.push({
         role: "dost",
-        text: `That's a new ${CREATE_LABEL[intent.kind]}, not a sale — so I've opened the ${CREATE_LABEL[intent.kind]} form${intent.name ? ` for “${intent.name}”` : ""}. Fill in what you know and press save. I won't write anything myself.`,
+        text: `That's a new ${CREATE_LABEL[intent.kind]}, not a sale — so I've opened the ${CREATE_LABEL[intent.kind]} form${cleanName ? ` for “${cleanName}”` : ""}. Fill in what you know and press save. I won't write anything myself.`,
         chips: [{ label: "Back to chat", nav: "ask" }],
         at: Date.now() + 1,
       });
@@ -3552,6 +3909,7 @@
     if (!s) return viewSuppliers();
     const bought = db.purchases.filter((p) => p.supplierId === id).sort((a, b) => b.at - a.at);
     const owed = supplierOwed(id);
+    const paidTo = db.supplierPayments.filter((p) => p.supplierId === id).sort((a, b) => b.at - a.at);
     const tags = String(s.supplies || "").split(",").map((x) => x.trim()).filter(Boolean);
     const again = [...new Set(bought.flatMap((p) => p.lines.map((l) => l.itemId)))]
       .map((iid) => db.items.find((i) => i.id === iid))
@@ -3612,6 +3970,17 @@
               <button class="btn btn--primary" data-act="pay-supplier" data-id="${s.id}">${icon("check")} Record payment</button>
             </div>
           </div>` : ""}
+          ${paidTo.length ? `<div class="section-label" style="margin-top:18px"><span class="section-label__title">Payments made</span></div>
+          <div class="people" style="margin-top:8px">
+            ${paidTo.map((p) => `<div class="lv-data-row">
+              <div><b>${money(p.amount)}</b><small>${new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${esc(p.date || "")}</small></div>
+              <button class="btn btn--ghost btn--sm" data-act="delete-supplier-payment" data-id="${p.id}">${icon("trash")} Remove</button>
+            </div>`).join("")}
+          </div>` : ""}
+          <div class="lv-actions" style="margin-top:14px">
+            <button class="btn btn--danger" data-act="delete-supplier" data-id="${s.id}">${icon("trash")} Delete this supplier</button>
+          </div>
+          ${bought.length ? `<p class="lv-hintline">This supplier has ${bought.length} purchase ${bought.length === 1 ? "bill" : "bills"}, so they can't be deleted until those are gone.</p>` : ""}
         </div>
       </div>
       ${indicator()}
@@ -4106,7 +4475,10 @@
                 <b>${esc(u.name)} ${u.id === currentUser().id ? `<span class="pill pill--success" style="margin-left:6px">using now</span>` : ""}</b>
                 <small>${u.role === "owner" ? "Owner — full access" : "Staff — selling only"}</small>
               </div>
-              ${u.id === currentUser().id ? "" : `<button class="btn btn--ghost btn--sm" data-act="set-user" data-id="${u.id}">Switch</button>`}
+              ${u.id === currentUser().id
+                ? ""
+                : `<span class="hstack gap-2"><button class="btn btn--ghost btn--sm" data-act="set-user" data-id="${u.id}">Switch</button>
+                   <button class="btn btn--ghost btn--sm" data-act="delete-user" data-id="${u.id}" aria-label="Remove ${esc(u.name)}">${icon("trash")} Remove</button></span>`}
             </div>`).join("")}
           </div>
 
@@ -4541,6 +4913,7 @@
   function saveInvoiceEdit() {
     const sale = db.sales.find((x) => x.id === ui.invEditId);
     if (!sale) throw new Error("That invoice no longer exists");
+    const prevDate = sale.date;
     const s = captureInvoiceForm();
     const cart = Array.isArray(ui.cart) ? ui.cart : [];
     if (!cart.length) throw new Error("An invoice needs at least one item");
@@ -4589,7 +4962,7 @@
       date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : sale.date,
       editedAt: Date.now(),
     });
-    sale.at = stampForDate(s.date) || sale.at;
+    if (s.date && s.date !== prevDate) sale.at = stampForDate(s.date) || sale.at;
 
     ui.cart = [];
     ui.sale = blankSale();
@@ -5065,6 +5438,7 @@
         break;
       case "expense":
         event.preventDefault();
+        ui.expenseDraft = null;
         go("expense");
         break;
       case "save-sale":
@@ -5138,6 +5512,7 @@
           category: fields.category,
           note: fields.note,
         });
+        ui.expenseDraft = null;
         persist();
         logAct("Expense saved", `${fields.category} · ${money(amount)}`);
         go("expenses");
@@ -5422,8 +5797,9 @@
         const user = db.users.find((u) => u.id === id);
         if (!user || db.users.length <= 1) { toast("At least one person must stay"); break; }
         if (!window.confirm(`Remove ${user.name} from this phone?`)) break;
+        const wasCurrent = db.settings.currentUser === id;
         db.users = db.users.filter((u) => u.id !== id);
-        db.settings.currentUser = db.users[0].id;
+        if (wasCurrent) db.settings.currentUser = db.users[0].id;
         logAct("Removed a person", user.name);
         persist();
         go("users");
@@ -5498,6 +5874,23 @@
         logAct("Supplier added", created.name);
         go(`supplier:${created.id}`);
         toast(`${created.name} added`);
+        break;
+      }
+      case "delete-supplier": {
+        event.preventDefault();
+        const sup = db.suppliers.find((x) => x.id === id);
+        if (!sup) break;
+        const bills = db.purchases.filter((p) => p.supplierId === id);
+        if (bills.length) {
+          toast(`${sup.name} has ${bills.length} purchase ${bills.length === 1 ? "bill" : "bills"} — delete those first`);
+          break;
+        }
+        if (!window.confirm(`Delete ${sup.name}?`)) break;
+        db.suppliers = db.suppliers.filter((x) => x.id !== id);
+        persist();
+        logAct("Supplier deleted", sup.name);
+        go("suppliers");
+        toast(`${sup.name} deleted`);
         break;
       }
       case "purchase-new-item": {
@@ -5775,6 +6168,28 @@
         persist();
         render();
         toast(`Paid ${money(pay)} to ${supplier.name}`);
+        break;
+      }
+      case "delete-supplier-payment": {
+        event.preventDefault();
+        const pay = db.supplierPayments.find((x) => x.id === id);
+        if (!pay) break;
+        if (!window.confirm(`Remove this ${money(pay.amount)} payment?`)) break;
+        let left = Number(pay.amount) || 0;
+        db.purchases
+          .filter((p) => p.supplierId === pay.supplierId && Number(p.paidAmount || 0) > 0)
+          .sort((a, b) => b.at - a.at)
+          .forEach((p) => {
+            const applied = Math.min(left, Number(p.paidAmount || 0));
+            p.paidAmount = Math.round((Number(p.paidAmount || 0) - applied) * 100) / 100;
+            p.paid = p.paidAmount >= p.amount - 0.5;
+            left -= applied;
+          });
+        db.supplierPayments = db.supplierPayments.filter((x) => x.id !== id);
+        persist();
+        logAct("Supplier payment removed", money(pay.amount));
+        render();
+        toast(`Payment of ${money(pay.amount)} removed — the bill is outstanding again`);
         break;
       }
       case "pay-purchase": {
