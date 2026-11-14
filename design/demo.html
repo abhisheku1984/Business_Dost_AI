@@ -74,16 +74,23 @@
 
   .demo-end {
     position: fixed; inset: 0; display: grid; place-items: center;
-    background: color-mix(in srgb, var(--bg) 86%, transparent);
-    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(115%); backdrop-filter: blur(16px) saturate(115%);
     opacity: 0; pointer-events: none; transition: opacity var(--dur-slow) var(--ease-standard);
     z-index: 20; text-align: center; padding: 24px;
   }
   .demo-end.is-on { opacity: 1; pointer-events: auto; }
-  .demo-end__inner { max-width: 420px; }
-  .demo-end svg { width: 60px; height: 60px; color: #0c0c0f; margin-bottom: 18px; }
-  .demo-end h2 { margin: 0; font-size: 38px; line-height: 1.05; letter-spacing: -0.04em; font-weight: 700; }
-  .demo-end p { margin: 12px 0 22px; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+  .demo-end__inner {
+    width: min(400px, calc(100vw - 40px));
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    padding: 34px 28px 26px;
+    box-shadow: 0 40px 90px -40px rgba(9, 12, 20, .38), 0 2px 8px rgba(9, 12, 20, .05);
+  }
+  .demo-end svg { width: 56px; height: 56px; color: #0c0c0f; margin-bottom: 16px; }
+  .demo-end h2 { margin: 0; font-size: 34px; line-height: 1.04; letter-spacing: -0.04em; font-weight: 700; }
+  .demo-end p { margin: 10px 0 22px; font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
   .demo-end .demo-replay { height: 40px; padding: 0 18px; font-size: 12.5px; border-radius: 14px; }
   .demo-end .demo-replay svg { width: 14px; height: 14px; margin: 0; }
 
