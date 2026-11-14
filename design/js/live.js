@@ -209,7 +209,8 @@
       db.meta = db.meta || {};
       db.meta.updatedAt = Date.now();
       localStorage.setItem(KEY, JSON.stringify(db));
-      if (window.BDDrive) window.BDDrive.queueSave(db);
+      if (storageMode() === "cloud" && window.BDCloud) window.BDCloud.queueSave(db);
+      else if (window.BDDrive) window.BDDrive.queueSave(db);
       if (!(opts && opts.skipSync) && typeof scheduleSync === "function") scheduleSync();
     } catch (err) {
       if (!storageWarned) {
@@ -2282,6 +2283,7 @@
   const storageMode = () => (db.settings && db.settings.storage) || "local";
 
   function storageLabel() {
+    if (storageMode() === "cloud" && cloudLinked()) return "Live · in your cloud account";
     if (storageMode() === "drive" && driveLinked()) return "Live · in your Google Drive";
     return "Live · saved on this device";
   }
@@ -2291,26 +2293,113 @@
     if (!pill) return;
     const label = storageLabel();
     if (pill.textContent !== label) pill.textContent = label;
-    pill.classList.toggle("app-bar__pill--drive", storageMode() === "drive" && driveLinked());
+    pill.classList.toggle("app-bar__pill--drive", (storageMode() === "drive" && driveLinked()) || (storageMode() === "cloud" && cloudLinked()));
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* cloud account (Supabase)                                           */
+  /* ------------------------------------------------------------------ */
+  const cloudModule = () => (window.BDCloud && window.BDCloud.configured() ? window.BDCloud : null);
+  const cloudLinked = () => Boolean(window.BDCloud && window.BDCloud.hasState());
+
+  function viewCloudAuth() {
+    const signed = cloudLinked();
+    const session = signed ? window.BDCloud.session() : null;
+    return `<div class="screen">
+      ${statusbar()}
+      <div class="screen__scroll">
+        <div class="lv-appbar">
+          <button class="lv-icon-btn" data-act="back" aria-label="Back">${icon("chevron-left")}</button>
+          <h1>Cloud account</h1>
+        </div>
+        <div class="lv-form">
+          <div class="lv-welcome__hero" style="padding:0 0 8px;text-align:left">
+            <span class="lv-welcome__mark">${icon("cloud")}</span>
+            <h1 style="font-size:24px">Your shop, on your own server</h1>
+            <p style="font-size:13px">Your books are stored in a Supabase project you control. Sign in here on any device and the same shop opens.</p>
+          </div>
+
+          ${signed ? `<div class="lv-note" style="margin:0">${icon("check-circle")} <span>Signed in as <b>${esc(session.email || "you")}</b>. Everything you do is saving to your cloud account.</span></div>
+            <div class="lv-actions">
+              <button class="btn btn--outline" data-act="cloud-pull">${icon("refresh")} Pull the latest from the cloud</button>
+              <button class="btn btn--ghost" data-act="cloud-signout">${icon("logout")} Sign out</button>
+            </div>` : `
+          <div class="lv-field">
+            <span class="lv-label">Email</span>
+            <input class="lv-input" id="cloud-email" type="email" autocomplete="email" placeholder="you@example.com" />
+          </div>
+          <div class="lv-field">
+            <span class="lv-label">Password</span>
+            <input class="lv-input" id="cloud-pass" type="password" autocomplete="current-password" placeholder="at least 6 characters" />
+          </div>
+          <div class="lv-actions">
+            <button class="btn btn--primary" data-act="cloud-signin">${icon("lock")} Sign in</button>
+            <button class="btn btn--outline" data-act="cloud-signup">${icon("plus")} Create an account</button>
+          </div>
+          <p class="lv-hintline">New here? “Create an account” makes a free account in your project, then signs you in. Your existing local data is uploaded on the first save.</p>`}
+
+          <div class="lv-note" style="margin-top:14px">${icon("shield")} <span>Your shop document is one row in your own Supabase database, protected by row level security — the key in this app can only ever read your own row. ${cloudLinked() ? "" : "Signing out leaves the copy on this device untouched."}</span></div>
+        </div>
+      </div>
+      ${indicator()}
+    </div>`;
+  }
+
+  async function cloudSignIn(create) {
+    const cloud = cloudModule();
+    if (!cloud) { toast("Cloud is not configured in this build"); return; }
+    const email = (($("#cloud-email") || {}).value || "").trim();
+    const pass = (($("#cloud-pass") || {}).value) || "";
+    if (!email.includes("@")) { toast("Enter your email"); return; }
+    if (pass.length < 6) { toast("Password needs at least 6 characters"); return; }
+    toast(create ? "Creating your account…" : "Signing in…");
+    try {
+      if (create) await cloud.signUp(email, pass);
+      else await cloud.signIn(email, pass);
+      db.settings.storage = "cloud";
+      persist({ skipSync: true });
+      const remote = await cloud.load();
+      if (remote && remote.doc && Array.isArray(remote.doc.sales)) {
+        db = mergeDocs(db, remote.doc);
+        persist({ skipSync: true });
+        toast("Signed in — cloud copy merged in");
+      } else {
+        toast("Signed in — this device's books are now saving to your cloud");
+      }
+      go("home");
+      render();
+    } catch (err) {
+      toast(err.message || "Could not sign in");
+    }
   }
 
   function viewWelcome() {
     const canDrive = Boolean(driveModule());
+    const canCloud = Boolean(cloudModule());
     return `<div class="screen lv-welcome">
       ${statusbar()}
       <div class="screen__scroll">
         <div class="lv-welcome__hero">
           <span class="lv-welcome__mark">${icon("shield")}</span>
-          <h1>Your books, in <em>your</em> Google Drive</h1>
-          <p>Business Dost does not keep a copy of your shop. Everything is saved in a private app folder inside your own Google Drive — the same place your photos and documents live.</p>
+          <h1>Your books, somewhere <em>you</em> control</h1>
+          <p>Business Dost never keeps your shop on our side. Pick where the books live — your own cloud account, your own Drive, or only this machine.</p>
         </div>
 
         <div class="lv-welcome__options">
-          <button class="lv-choice lv-choice--primary" data-act="choose-drive" ${canDrive ? "" : "disabled"}>
+          <button class="lv-choice ${canCloud ? "lv-choice--primary" : ""}" data-act="choose-cloud" ${canCloud ? "" : "disabled"}>
             <span class="lv-choice__icon">${icon("cloud")}</span>
             <span class="lv-choice__text">
+              <b>Sign in to my cloud account</b>
+              <small>The shop lives in your own Supabase database with a login. Open it on any computer, and it keeps working offline.</small>
+            </span>
+            ${icon("chevron-right", "lv-choice__chev")}
+          </button>
+
+          <button class="lv-choice ${!canCloud && canDrive ? "lv-choice--primary" : ""}" data-act="choose-drive" ${canDrive ? "" : "disabled"}>
+            <span class="lv-choice__icon">${icon("shield")}</span>
+            <span class="lv-choice__text">
               <b>Save in my Google Drive</b>
-              <small>Ask Google for permission, then keep every sale there. Open it on any phone you sign into.</small>
+              <small>Ask Google for permission, then keep every sale there — no account with us at all.</small>
             </span>
             ${icon("chevron-right", "lv-choice__chev")}
           </button>
@@ -2326,13 +2415,13 @@
         </div>
 
         <ul class="lv-welcome__facts">
-          <li>${icon("lock")} <span>The app can only open <b>its own file</b> in Drive — it cannot browse your documents.</span></li>
-          <li>${icon("shield")} <span>No account with us, no server of ours, no analytics. Your browser talks straight to Google.</span></li>
-          <li>${icon("refresh")} <span>Reinstall or change phones: sign in with the same Google account and your shop is back.</span></li>
-          <li>${icon("info")} <span>You can disconnect at any time in Settings. The file stays in your Drive until you delete it.</span></li>
+          <li>${icon("lock")} <span>One row per shop, protected by row level security — the key in this app can only ever read your own shop.</span></li>
+          <li>${icon("shield")} <span>No analytics, no tracking, no third-party scripts. The browser talks straight to your own project.</span></li>
+          <li>${icon("refresh")} <span>Change computers: sign in with the same account and the same shop opens.</span></li>
+          <li>${icon("info")} <span>You can disconnect any time in Settings. The copy on this device stays until you clear it.</span></li>
         </ul>
 
-        ${canDrive ? "" : `<div class="lv-note" style="margin:0 16px">${icon("info")} <span>This build has no Google client ID yet, so Drive is not available — it will keep everything on this device. The five-minute setup is in <b>GOOGLE_DRIVE.md</b>.</span></div>`}
+        ${canCloud || canDrive ? "" : `<div class="lv-note" style="margin:0 16px">${icon("info")} <span>No cloud account is configured in this build yet, so everything stays on this machine. Setup steps are in <b>SUPABASE.md</b> and <b>GOOGLE_DRIVE.md</b>.</span></div>`}
 
         <p class="lv-welcome__fine">Nothing is uploaded anywhere until you choose, and choosing “only on this device” uploads nothing at all.</p>
       </div>
@@ -2362,6 +2451,24 @@
   }
 
   function storageBlock() {
+    if (window.BDCloud && window.BDCloud.configured() && storageMode() === "cloud") {
+      const session = window.BDCloud.session() || {};
+      const linked = window.BDCloud.hasState();
+      return `<div class="section-label" style="margin-top:22px"><span class="section-label__title">Storage</span>
+          <span class="pill ${linked ? "pill--success" : ""}">${linked ? "Cloud account" : "Signed out"}</span>
+        </div>
+        <div class="lv-data-row">
+          <div>
+            <b>${linked ? `Saved in your cloud account` : "Signed out of the cloud"}</b>
+            <small>${linked ? `${esc(session.email || "you")} · your own Supabase project · also copied to this device` : "Everything is on this device only until you sign in again"}</small>
+          </div>
+        </div>
+        <div class="lv-actions">
+          <button class="btn btn--outline" data-nav="cloud-auth">${icon("cloud")} ${linked ? "Account & sync" : "Sign in"}</button>
+          ${linked ? `<button class="btn btn--ghost" data-act="cloud-signout">Sign out</button>` : ""}
+        </div>
+        <p class="lv-hintline" style="text-align:left">One row in your own database, readable only by you (row level security). Business Dost has no server that stores your books.</p>`;
+    }
     const drive = window.BDDrive;
     const st = drive ? drive.status() : { configured: false, connected: false, hasFile: false, lastSaved: 0 };
     const mode = storageMode();
@@ -2382,6 +2489,7 @@
           ? `<button class="btn btn--outline" data-act="drive-save">${icon("cloud")} Save to Drive now</button>
              <button class="btn btn--ghost" data-act="drive-disconnect">Disconnect</button>`
           : `<button class="btn btn--primary" data-act="drive-connect" ${st.configured ? "" : "disabled"}>${icon("cloud")} Save in my Google Drive</button>`}
+        ${window.BDCloud && window.BDCloud.configured() ? `<button class="btn btn--outline" data-nav="cloud-auth">${icon("cloud")} Use a cloud account instead</button>` : ""}
       </div>
       ${st.configured
         ? `<p class="lv-hintline" style="text-align:left">The file lives in a hidden app folder in your own Drive (drive.appdata). We cannot read it, and the app cannot see the rest of your Drive.</p>`
@@ -3678,6 +3786,7 @@
     else if (base === "inventory") html = viewInventory();
     else if (base === "welcome") html = viewWelcome();
     else if (base === "documents") html = viewDocuments();
+    else if (base === "cloud-auth") html = viewCloudAuth();
     else if (base === "reminders") html = viewReminders();
     else if (base === "users") html = viewUsers();
     else if (base === "audit") html = viewAudit();
@@ -4093,6 +4202,49 @@
       case "choose-drive":
         event.preventDefault();
         connectDriveAndStart();
+        break;
+      case "choose-cloud":
+        event.preventDefault();
+        if (!cloudModule()) { toast("No cloud account is configured in this build"); break; }
+        go("cloud-auth");
+        break;
+      case "cloud-signin":
+        event.preventDefault();
+        cloudSignIn(false);
+        break;
+      case "cloud-signup":
+        event.preventDefault();
+        cloudSignIn(true);
+        break;
+      case "cloud-pull": {
+        event.preventDefault();
+        (async () => {
+          try {
+            const remote = await window.BDCloud.load();
+            if (remote && remote.doc && Array.isArray(remote.doc.sales)) {
+              db = mergeDocs(db, remote.doc);
+              persist({ skipSync: true });
+              render();
+              toast("Pulled the latest from your cloud account");
+            } else {
+              toast("Nothing in the cloud yet — this device is the source");
+            }
+          } catch (err) {
+            toast(err.message || "Could not reach the cloud");
+          }
+        })();
+        break;
+      }
+      case "cloud-signout":
+        event.preventDefault();
+        (async () => {
+          if (!window.confirm("Sign out of the cloud account? The copy on this device stays.")) return;
+          await window.BDCloud.disconnect();
+          db.settings.storage = "local";
+          persist({ skipSync: true });
+          go("more");
+          toast("Signed out — now saving on this device only");
+        })();
         break;
       case "choose-local":
         event.preventDefault();
@@ -4968,10 +5120,12 @@
       }).join("")}
       <div class="dk-side__foot">
         <div class="dk-side__storage">
-          ${icon(storageMode() === "drive" && driveLinked() ? "cloud" : "monitor")}
+          ${icon((storageMode() === "drive" && driveLinked()) || (storageMode() === "cloud" && cloudLinked()) ? "cloud" : "monitor")}
           <span>${esc(storageLabel())}</span>
         </div>
       </div>`;
+
+    document.body.classList.toggle("is-welcome", base === "welcome");
 
     const chip = document.getElementById("dk-user");
     if (chip) {
@@ -5127,6 +5281,17 @@
   if (syncReady()) {
     /* a quiet pull on open, so this phone starts from the shared books */
     syncNow(false);
+  }
+
+  /* restart where we were: pull the cloud copy when this device is signed in */
+  if (db.settings.storage === "cloud" && cloudModule() && window.BDCloud.hasState()) {
+    window.BDCloud.load().then((res) => {
+      if (res && res.doc && Array.isArray(res.doc.sales)) {
+        db = mergeDocs(db, res.doc);
+        persist({ skipSync: true });
+        render();
+      }
+    }).catch(() => { /* offline: the local copy keeps working */ });
   }
 
   /* restart where we were, and quietly re-open the Drive file if this phone used it before */

@@ -58,7 +58,16 @@ Without it, the Drive button shows `origin_mismatch`. That is the single most co
 
 ---
 
-## 3 · Do you need Supabase?
+## 3 · Storage: Supabase, per your decision
+
+You chose Supabase for the books, so the app now has a **third storage option** — a cloud account —
+alongside “this device” and Google Drive. Setup, security model and honest status:
+[`SUPABASE.md`](SUPABASE.md).
+
+Drive was not deleted. It stays as a non-primary option until the Supabase path has run against a
+real project, because a working backup should not be removed before the replacement is proven.
+
+## 4 · Do you need Supabase? (the general answer, still true)
 
 **No — not to launch.** Render only serves files. Business data still lives in the shopkeeper's
 own Google Drive (with a copy in the browser for offline use). Nothing about hosting changes that.
@@ -84,7 +93,7 @@ Gemini is roughly ₹0.01–0.10 per question.
 
 ---
 
-## 4 · Before a real pilot
+## 5 · Before a real pilot
 
 1. **Google Cloud:** move the OAuth consent screen from *Testing* to *In production*
    (brand verification only — `drive.file` and `drive.appdata` are non-sensitive scopes, so no
@@ -96,7 +105,7 @@ Gemini is roughly ₹0.01–0.10 per question.
 
 ---
 
-## 5 · What is still not built
+## 6 · What is still not built
 
 - The phone layout, redone properly (deliberately later).
 - The Android package (AAB) — parked.

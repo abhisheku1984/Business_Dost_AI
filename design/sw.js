@@ -3,7 +3,7 @@
    Strategy: network-first for pages (so a new version shows up), stale-while-revalidate
    for CSS/JS/fonts/icons. No network at all → whatever is cached. */
 
-const VERSION = "bd-v4";
+const VERSION = "bd-v5";
 const CACHE = `business-dost-${VERSION}`;
 
 const SHELL = [
@@ -17,6 +17,9 @@ const SHELL = [
   "./css/live.css",
   "./js/live.js",
   "./js/drive.js",
+  "./js/cloud.js",
+  "./js/cloud-config.js",
+  "./css/desktop.css",
   "./js/drive-config.js",
   "./js/screens.js",
   "./js/assistant.js",

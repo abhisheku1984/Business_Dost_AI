@@ -148,6 +148,9 @@ two-column dashboard, full-height windows, keyboard shortcuts (`n` sale, `c` cus
 `r` reports, `d` dashboard, `Esc` back) and an A4 print view for invoices. Below 900 px the old phone
 layout still renders, but it is deliberately not the focus right now.
 
+**Cloud storage:** sign-in + document sync on Supabase is wired — see [`SUPABASE.md`](SUPABASE.md)
+(schema, security, honest status). Google Drive remains as an optional second choice.
+
 **Publishing on Render:** push the repo, then Render → New → Blueprint (it reads `render.yaml`).
 Static site, publish directory `design`, app at the domain root. One manual step is unavoidable:
 add `https://your-app.onrender.com` to the OAuth client's *Authorized JavaScript origins* in Google
@@ -172,7 +175,7 @@ Everything below runs today in `design/live.html` — no mockups.
 | People & roles — owner vs staff, with an activity log | Working |
 | Plan screen (Free now; Play Billing not connected) | Visible, not billable |
 | Ask Dost — ~20 intents, English **and** Hindi answers, read aloud | Working (rule-based, no LLM yet) |
-| Storage | One JSON document — this device, or **your own Google Drive** |
+| Storage | One JSON document — this device, **your own Supabase project**, or your Google Drive |
 | Android package (AAB), push, multi-device staff | Not built |
 
 ## The design in one page

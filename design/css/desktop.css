@@ -480,3 +480,20 @@
   .ctr-search__hint { display: none; }
   .ctr { gap: 14px; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr); }
 }
+
+/* ---------- first run: no rail until a storage is chosen ---------- */
+@media (min-width: 900px) {
+  body.is-welcome .dk-side { display: none; }
+  body.is-welcome .workspace { grid-template-columns: minmax(0, 1fr); }
+
+  .lv-welcome__hero, .lv-welcome__options, .lv-welcome__facts,
+  .lv-welcome .lv-note, .lv-welcome__fine {
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .lv-welcome__hero { padding-top: 26px; }
+  .lv-welcome__hero h1 { font-size: 30px; }
+  .lv-welcome__hero p { font-size: 13.5px; max-width: 620px; }
+  .lv-welcome .screen__scroll { padding-top: 12px; }
+}
